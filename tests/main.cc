@@ -1,7 +1,7 @@
 #include <iostream>
 #include "../src/ptrie.hh"
 
-int main(int argc, char** argv)
+int main()
 {
   PTrie ptrie;
 
