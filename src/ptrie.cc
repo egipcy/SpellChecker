@@ -5,7 +5,7 @@
 PTrie::PTrie()
 { }
 
-void PTrie::insert(const std::string& word, unsigned short frequence)
+void PTrie::insert(const std::string& word, unsigned long frequence)
 {
   if (word.size() == 0)
     return;
@@ -73,13 +73,13 @@ void PTrie::insert(const std::string& word, unsigned short frequence)
   }
 }
 
-std::vector<std::pair<std::string, unsigned short>>
-PTrie::search(const std::string& word, unsigned short distance) const
+std::vector<std::pair<std::string, unsigned long>>
+PTrie::search(const std::string& word, unsigned long distance) const
 {
   if (distance == 0)
     return { search_distance0(word) };
 
-  std::vector<std::pair<std::string, unsigned short>> ret;
+  std::vector<std::pair<std::string, unsigned long>> ret;
 
   // TODO: Damerau-Levenshtein distance > 0
 
@@ -109,7 +109,7 @@ size_t PTrie::search_prefix(const std::string& word) const
   return i;
 }
 
-std::pair<std::string, unsigned short> PTrie::search_distance0(const std::string& word) const
+std::pair<std::string, unsigned long> PTrie::search_distance0(const std::string& word) const
 {
   return std::make_pair<>("a", 1);
 }

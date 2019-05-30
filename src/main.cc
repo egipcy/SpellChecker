@@ -21,18 +21,18 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  unsigned short i;
+  unsigned long i;
   std::string str;
   while (!file.eof())
   {
     file >> str;
     file >> i;
-
+    
     ptrie.insert(str, i);
   }
 
 
-  std::cout << "ok" << std::endl;
+  std::cout << "END" << std::endl;
 
   char a;
   std::cin >> a;
