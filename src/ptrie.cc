@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 
 #include "ptrie.hh"
 
@@ -73,19 +74,6 @@ void PTrie::insert(const std::string& word, unsigned long frequence)
   }
 }
 
-std::vector<std::pair<std::string, unsigned long>>
-PTrie::search(const std::string& word, unsigned long distance) const
-{
-  if (distance == 0)
-    return { search_distance0(word) };
-
-  std::vector<std::pair<std::string, unsigned long>> ret;
-
-  // TODO: Damerau-Levenshtein distance > 0
-
-  return ret;
-}
-
 void PTrie::print(int nb_indent) const
 {
   for (const auto& e: v_)
@@ -100,6 +88,17 @@ void PTrie::print(int nb_indent) const
     std::cout << std::endl;
 }
 
+void PTrie::sort()
+{
+  // Recursive calls
+  for (auto e: v_)
+    if (std::get<1>(e))
+      std::get<1>(e)->sort();
+
+  // Sort v_'s strings
+  std::sort(v_.begin(), v_.end());
+}
+
 size_t PTrie::search_prefix(const std::string& word) const
 {
   size_t i;
@@ -107,9 +106,4 @@ size_t PTrie::search_prefix(const std::string& word) const
     if (std::get<0>(v_[i])[0] == word[0])
       break;
   return i;
-}
-
-std::pair<std::string, unsigned long> PTrie::search_distance0(const std::string& word) const
-{
-  return std::make_pair<>("a", 1);
 }

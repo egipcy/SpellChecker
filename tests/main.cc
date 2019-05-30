@@ -1,4 +1,5 @@
 #include <iostream>
+
 #include "../src/ptrie.hh"
 
 int main()
@@ -6,8 +7,9 @@ int main()
   PTrie ptrie;
 
   std::vector<std::string> v = {
-    "maison", "navet", "maisonnette", "maisonnettes", "mai",
-    "maitre", "navet", "navette", "naviguer", "nouveau"
+    "navet", "maison", "maisonnette", "maisonnettes", "mai",
+    "maitre", "navet", "naviguer", "navette", "nouveau", "machoire",
+    "maitresse", "maitrise"
   };
 
   std::cout << "Base:" << std::endl;
@@ -20,6 +22,10 @@ int main()
     ptrie.insert(e, frequence++);
     ptrie.print();
   }
+
+  std::cout << "Sort" << std::endl;
+  ptrie.sort();
+  ptrie.print();
 
   return 0;
 }

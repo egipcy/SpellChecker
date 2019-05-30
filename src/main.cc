@@ -31,6 +31,9 @@ int main(int argc, char** argv)
     ptrie.insert(str, i);
   }
 
+  std::cout << "Sort" << std::endl;
+
+  ptrie.sort();
 
   std::cout << "END" << std::endl;
 

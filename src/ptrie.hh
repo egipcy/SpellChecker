@@ -15,10 +15,8 @@ public:
 
   void print(int nb_indent = 0) const;
 
-  std::vector<std::pair<std::string, unsigned long>> search(const std::string&, unsigned long) const;
+  void sort();
 
 private:
   size_t search_prefix(const std::string&) const;
-
-  std::pair<std::string, unsigned long> search_distance0(const std::string&) const;
 };
