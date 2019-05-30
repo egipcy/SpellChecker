@@ -13,10 +13,11 @@ int main()
   std::cout << "Base:" << std::endl;
   ptrie.print();
 
+  unsigned short frequence = 1;
   for (auto e : v)
   {
-    std::cout << "Insert " << e << std::endl;
-    ptrie.insert(e);
+    std::cout << "Insert " << e << " f=" << frequence << std::endl;
+    ptrie.insert(e, frequence++);
     ptrie.print();
   }
 

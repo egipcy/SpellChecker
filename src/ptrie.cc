@@ -5,16 +5,7 @@
 PTrie::PTrie()
 { }
 
-size_t PTrie::search_prefix(const std::string& word)
-{
-  size_t i;
-  for (i = 0; i < v_.size(); i++)
-    if (std::get<0>(v_[i])[0] == word[0])
-      break;
-  return i;
-}
-
-void PTrie::insert(const std::string& word)
+void PTrie::insert(const std::string& word, unsigned short frequence)
 {
   if (word.size() == 0)
     return;
@@ -26,7 +17,7 @@ void PTrie::insert(const std::string& word)
   if (index == v_.size()) // Word doesn't exist
   {
     // New edge
-    v_.emplace_back(word, nullptr, true);
+    v_.emplace_back(word, nullptr, true, frequence);
     return;
   }
 
@@ -48,6 +39,7 @@ void PTrie::insert(const std::string& word)
   if (suffix1.size() == 0 && suffix2.size() == 0)
   {
     std::get<2>(tuple) = true;
+    std::get<3>(tuple) = frequence;
   }
   else
   {
@@ -56,23 +48,42 @@ void PTrie::insert(const std::string& word)
       // Edge value set to shared prefix
       w = prefix;
 
-      // Remember the children and the value
+      // Remember the children, the existence value and the frequence
       auto children = std::get<1>(tuple);
       auto value = std::get<2>(tuple);
+      auto freq = std::get<3>(tuple);
 
       if (suffix1.size() != 0)
+      {
         // w isn't a valid word anymore
         std::get<2>(tuple) = false;
+        std::get<3>(tuple) = 0;
+      }
+      else  // Update frequence value
+        std::get<3>(tuple) = frequence;
 
       // New node
       std::get<1>(tuple) = std::make_shared<PTrie>();
-      std::get<1>(tuple)->v_.emplace_back(suffix2, children, value);
+      std::get<1>(tuple)->v_.emplace_back(suffix2, children, value, freq);
     }
     // Insert suffix1 in children
     else if (!std::get<1>(tuple))
       std::get<1>(tuple) = std::make_shared<PTrie>();
-    std::get<1>(tuple)->insert(suffix1);
+    std::get<1>(tuple)->insert(suffix1, frequence);
   }
+}
+
+std::vector<std::pair<std::string, unsigned short>>
+PTrie::search(const std::string& word, unsigned short distance) const
+{
+  if (distance == 0)
+    return { search_distance0(word) };
+
+  std::vector<std::pair<std::string, unsigned short>> ret;
+
+  // TODO: Damerau-Levenshtein distance > 0
+
+  return ret;
 }
 
 void PTrie::print(int nb_indent) const
@@ -81,10 +92,24 @@ void PTrie::print(int nb_indent) const
   {
     for (int i = 0; i < nb_indent; i++)
       std::cout << ' ';
-    std::cout << std::get<0>(e) << " " << std::get<2>(e) << std::endl;
+    std::cout << std::get<0>(e) << " " << std::get<2>(e) << " f=" << std::get<3>(e) << std::endl;
     if (std::get<1>(e))
       std::get<1>(e)->print(nb_indent + 1);
   }
   if (nb_indent == 0)
     std::cout << std::endl;
+}
+
+size_t PTrie::search_prefix(const std::string& word) const
+{
+  size_t i;
+  for (i = 0; i < v_.size(); i++)
+    if (std::get<0>(v_[i])[0] == word[0])
+      break;
+  return i;
+}
+
+std::pair<std::string, unsigned short> PTrie::search_distance0(const std::string& word) const
+{
+  return std::make_pair<>("a", 1);
 }

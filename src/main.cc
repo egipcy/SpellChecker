@@ -21,14 +21,14 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  size_t i;
+  unsigned short i;
   std::string str;
   while (!file.eof())
   {
     file >> str;
     file >> i;
 
-    ptrie.insert(str);
+    ptrie.insert(str, i);
   }
 
 
