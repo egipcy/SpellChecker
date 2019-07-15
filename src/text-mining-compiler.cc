@@ -15,7 +15,7 @@ int main(int argc, char** argv)
 
   if (!file)
   {
-    std::cout << "Invalid file" << std::endl;
+    std::cout << "Invalid file:" << argv[1] << std::endl;
     return 0;
   }
 
