@@ -1,5 +1,5 @@
-./TextMiningCompiler
-./TextMiningApp
-./test*
+TextMiningCompiler
+TextMiningApp
+test*
 file.txt
 mydict.bin
