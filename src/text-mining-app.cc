@@ -34,8 +34,6 @@ int main(int argc, char** argv)
     unsigned int length = std::stoul(line.substr(first_space + 1, last_space - first_space - 1));
     std::string word = line.substr(last_space + 1);
 
-    std::cout << approx << "'" << std::endl << length << "'" << std::endl << word << "'" << std::endl;
-
     if (approx != "approx")
       continue;
 
