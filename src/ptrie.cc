@@ -178,7 +178,7 @@ std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search0(const std::string& word)
 {
   std::vector<std::tuple<std::string, unsigned long, unsigned int>> result;
-  std::shared_ptr<PTrie> pt = std::make_shared<PTrie>(*this);
+  PTrie* pt = this;
   size_t v_size = pt->v_.size();
   if (!v_size)
     return result;
@@ -206,8 +206,7 @@ PTrie::search0(const std::string& word)
         {
           if (std::get<1>(pt->v_[v_i]) == nullptr)
             return result;
-          std::shared_ptr<PTrie> child = std::get<1>(pt->v_[v_i]);
-          pt = child;
+          pt = std::get<1>(pt->v_[v_i]).get();
           v_size = pt->v_.size();
           v_i = 0;
         }
