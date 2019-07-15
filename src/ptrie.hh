@@ -20,8 +20,8 @@ public:
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
   search(const std::string& word, unsigned int length);
 
-  void serialize(const std::string& filename);
-  void deserialize(const std::string& filename);
+  void serialize(const std::ofstream& file);
+  void deserialize(const std::ifstream& file);
 
 private:
   size_t search_prefix(const std::string&) const;

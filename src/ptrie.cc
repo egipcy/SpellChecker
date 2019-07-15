@@ -110,12 +110,12 @@ PTrie::search(const std::string& word, unsigned int length)
   return std::vector<std::tuple<std::string, unsigned long, unsigned int>>();
 }
 
-void PTrie::serialize(const std::string& filename)
+void PTrie::serialize(const std::ofstream& file)
 {
   // TODO
 }
 
-void PTrie::deserialize(const std::string& filename)
+void PTrie::deserialize(const std::ifstream& file)
 {
   // TODO
 }
