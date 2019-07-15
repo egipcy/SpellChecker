@@ -17,6 +17,17 @@ public:
 
   void sort();
 
+  std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+  search(const std::string& word, unsigned int length);
+
+  void serialize(const std::string& filename);
+  void deserialize(const std::string& filename);
+
 private:
   size_t search_prefix(const std::string&) const;
+
+  std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+  search0(const std::string& word);
 };
+
+void print_result(const std::vector<std::tuple<std::string, unsigned long, unsigned int>>& result);

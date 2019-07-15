@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "ptrie.hh"
+#include "../src/ptrie.hh"
 
 int main(int argc, char** argv)
 {
@@ -30,6 +30,7 @@ int main(int argc, char** argv)
     
     ptrie.insert(str, i);
   }
+  file.close();
 
   std::cout << "Sort" << std::endl;
 

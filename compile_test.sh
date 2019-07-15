@@ -1,3 +1,4 @@
 #! /bin/sh
 
-g++ tests/main.cc src/ptrie.cc -o test
+g++ tests/test1.cc src/ptrie.cc -o test1
+g++ tests/test1.cc src/ptrie.cc -o test2

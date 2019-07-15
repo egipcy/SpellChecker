@@ -1,3 +1,4 @@
 #! /bin/sh
 
-g++ src/main.cc src/ptrie.cc -o bin
+g++ src/text-mining-compiler.cc src/ptrie.cc -o TextMiningCompiler
+g++ src/text-mining-app.cc src/ptrie.cc -o TextMiningApp

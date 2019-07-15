@@ -99,6 +99,27 @@ void PTrie::sort()
   std::sort(v_.begin(), v_.end());
 }
 
+std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+PTrie::search(const std::string& word, unsigned int length)
+{
+  if (length == 0)
+    return search0(word);
+
+  // TODO
+
+  return std::vector<std::tuple<std::string, unsigned long, unsigned int>>();
+}
+
+void PTrie::serialize(const std::string& filename)
+{
+  // TODO
+}
+
+void PTrie::deserialize(const std::string& filename)
+{
+  // TODO
+}
+
 size_t PTrie::search_prefix(const std::string& word) const
 {
   size_t i;
@@ -106,4 +127,17 @@ size_t PTrie::search_prefix(const std::string& word) const
     if (std::get<0>(v_[i])[0] == word[0])
       break;
   return i;
+}
+
+std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+PTrie::search0(const std::string& word)
+{
+  // TODO
+
+  return std::vector<std::tuple<std::string, unsigned long, unsigned int>>();
+}
+
+void print_result(const std::vector<std::tuple<std::string, unsigned long, unsigned int>>& result)
+{
+  // TODO
 }
