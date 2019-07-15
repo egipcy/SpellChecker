@@ -1,5 +1,4 @@
-TextMiningCompiler
-TextMiningApp
-test1
-test2
+./TextMiningCompiler
+./TextMiningApp
+./test*
 file.txt
