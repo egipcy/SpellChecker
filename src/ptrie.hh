@@ -2,6 +2,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <fstream>
 
 class PTrie: public std::enable_shared_from_this<PTrie>
 {
@@ -20,8 +21,8 @@ public:
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
   search(const std::string& word, unsigned int length);
 
-  void serialize(const std::string& filename);
-  void deserialize(const std::string& filename);
+  void serialize(std::ofstream& file);
+  void deserialize(std::ifstream& file);
 
 private:
   size_t search_prefix(const std::string&) const;

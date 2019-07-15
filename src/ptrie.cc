@@ -110,14 +110,56 @@ PTrie::search(const std::string& word, unsigned int length)
   return std::vector<std::tuple<std::string, unsigned long, unsigned int>>();
 }
 
-void PTrie::serialize(const std::string& filename)
+void PTrie::serialize(std::ofstream& file)
 {
-  // TODO
+  for (size_t i = 0; i < v_.size(); i++)
+  {
+    auto e = v_[i];
+
+    file << std::get<0>(e) << std::endl;
+    file << std::get<2>(e) << std::endl;
+    file << std::get<3>(e) << std::endl;
+    if (std::get<1>(e))
+    {
+      file << "0" << std::endl;
+      std::get<1>(e)->serialize(file);
+    }
+    else
+      file << "1" << std::endl;
+
+    if (i < v_.size() - 1)
+      file << "no end" << std::endl;
+  }
+  file << "end" << std::endl;
 }
 
-void PTrie::deserialize(const std::string& filename)
+void PTrie::deserialize(std::ifstream& file)
 {
-  // TODO
+  std::string line;
+
+  if (!std::getline(file, line))
+    return;
+  std::string s = line;
+
+  std::getline(file, line);
+  bool b = line != "0";
+
+  std::getline(file, line);
+  unsigned long i = std::stoul(line);
+
+  std::getline(file, line);
+  std::shared_ptr<PTrie> ptrie = nullptr;
+  if (line == "0")
+  {
+    ptrie = std::make_shared<PTrie>();
+    ptrie->deserialize(file);
+  }
+
+  v_.push_back(std::make_tuple(s, ptrie, b, i));
+
+  std::getline(file, line);
+  if (line == "no end")
+    deserialize(file);
 }
 
 size_t PTrie::search_prefix(const std::string& word) const
@@ -193,5 +235,18 @@ std::shared_ptr<PTrie> PTrie::get_ptr()
 
 void print_result(const std::vector<std::tuple<std::string, unsigned long, unsigned int>>& result)
 {
-  // TODO
+  std::cout << "[";
+
+  for (size_t i = 0; i < result.size(); i++)
+  {
+    auto e = result[i];
+    
+    std::cout << "{\"word\":\"" << std::get<0>(e) << "\",\"freq\":" << std::get<1>(e)
+      << ",\"distance\":" << std::get<2>(e) << "}";
+
+    if (i < result.size() - 1)
+      std::cout << ",";
+  }
+
+  std::cout << "]" << std::endl;
 }

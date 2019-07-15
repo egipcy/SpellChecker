@@ -21,21 +21,13 @@ int main()
   {
     std::cout << "Insert " << e << " f=" << frequence << std::endl;
     ptrie->insert(e, frequence++);
-    ptrie->print();
   }
-
-  std::cout << "Sort" << std::endl;
   ptrie->sort();
-  ptrie->print();
-
-  std::ofstream f1("file.txt");
-  ptrie->serialize(f1);
-
-  PTrie pt2;
-  std::shared_ptr<PTrie> ptrie2 = std::make_shared<PTrie>(pt2);
-  std::ifstream f2("file.txt");
-  ptrie2->deserialize(f2);
-  ptrie2->print();
+  std::vector<std::tuple<std::string, unsigned long, unsigned int>> r =ptrie->search("maison",0);
+  std::cout << "Search maison: " << std::endl;
+  std::cout << "size: " << r.size() << std::endl;
+  std::cout << "freq: " << std::get<1>(r[0]) << std::endl;
+  std::cout << "distance: " << std::get<2>(r[0]) << std::endl;
 
   return 0;
 }

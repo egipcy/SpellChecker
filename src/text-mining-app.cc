@@ -11,8 +11,18 @@ int main(int argc, char** argv)
     return 0;
   }
 
+  std::ifstream file_dict(argv[1]);
+
+  if (!file_dict)
+  {
+    std::cout << "Invalid file:" << argv[1] << std::endl;
+    return 0;
+  }
+
   PTrie ptrie;
-  ptrie.deserialize(argv[1]);
+  ptrie.deserialize(file_dict);
+
+  file_dict.close();
 
   std::string line;
   while (std::getline(std::cin, line))

@@ -11,29 +11,39 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  std::ifstream file(argv[1]);
+  std::ifstream file_words(argv[1]);
 
-  if (!file)
+  if (!file_words)
   {
     std::cout << "Invalid file:" << argv[1] << std::endl;
+    return 0;
+  }
+
+  std::ofstream file_dict(argv[2]);
+
+  if (!file_dict)
+  {
+    std::cout << "Invalid file:" << argv[2] << std::endl;
     return 0;
   }
 
   PTrie ptrie;
   unsigned long i;
   std::string str;
-  while (!file.eof())
+  while (!file_words.eof())
   {
-    file >> str;
-    file >> i;
+    file_words >> str;
+    file_words >> i;
     
     ptrie.insert(str, i);
   }
-  file.close();
+  file_words.close();
 
   ptrie.sort();
 
-  ptrie.serialize(argv[2]);
+  ptrie.serialize(file_dict);
+
+  file_dict.close();
 
   return 0;
 }
