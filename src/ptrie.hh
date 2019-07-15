@@ -32,7 +32,6 @@ private:
 
   //Utilisé pour pouvoir stocker this dans la même variable que les ptrie fils.
   //https://en.cppreference.com/w/cpp/memory/enable_shared_from_this
-public:
   std::shared_ptr<PTrie> get_ptr();
 };
 
