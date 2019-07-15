@@ -27,5 +27,13 @@ int main()
   ptrie.sort();
   ptrie.print();
 
+  std::ofstream f1("file.txt");
+  ptrie.serialize(f1);
+
+  PTrie ptrie2;
+  std::ifstream f2("file.txt");
+  ptrie2.deserialize(f2);
+  ptrie2.print();
+
   return 0;
 }
