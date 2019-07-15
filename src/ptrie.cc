@@ -181,5 +181,18 @@ PTrie::search0(const std::string& word)
 
 void print_result(const std::vector<std::tuple<std::string, unsigned long, unsigned int>>& result)
 {
-  // TODO
+  std::cout << "[";
+
+  for (size_t i = 0; i < result.size(); i++)
+  {
+    auto e = result[i];
+    
+    std::cout << "{\"word\":\"" << std::get<0>(e) << "\",\"freq\":" << std::get<1>(e)
+      << ",\"distance\":" << std::get<2>(e) << "}";
+
+    if (i < result.size() - 1)
+      std::cout << ",";
+  }
+
+  std::cout << "]" << std::endl;
 }
