@@ -5,8 +5,7 @@
 
 int main(int argc, char** argv)
 {
-  PTrie pt;
-  std::shared_ptr<PTrie> ptrie = std::make_shared<PTrie>(pt);
+  PTrie ptrie;
 
   if (argc != 2)
   {
@@ -29,13 +28,13 @@ int main(int argc, char** argv)
     file >> str;
     file >> i;
     
-    ptrie->insert(str, i);
+    ptrie.insert(str, i);
   }
   file.close();
 
   std::cout << "Sort" << std::endl;
 
-  ptrie->sort();
+  ptrie.sort();
 
   std::cout << "END" << std::endl;
 
