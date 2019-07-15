@@ -1,6 +1,6 @@
 #include <iostream>
 #include <algorithm>
-
+#include <memory>
 #include "ptrie.hh"
 
 PTrie::PTrie()
@@ -129,12 +129,66 @@ size_t PTrie::search_prefix(const std::string& word) const
   return i;
 }
 
+/**
+ * Would be better to return a pointer to the vector
+ */
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search0(const std::string& word)
 {
-  // TODO
+  std::vector<std::tuple<std::string, unsigned long, unsigned int>> result;
+  std::shared_ptr<PTrie> pt = get_ptr();
+  size_t v_size = pt->v_.size();
+  if (!v_size)
+    return result;
+  size_t ws = word.size();
+  int word_i = 0;
+  int v_i = 0;
+  while (1)
+  {
+    std::string s = std::get<0>(pt->v_[v_i]);
+    size_t ss = s.size();
+    for (int j = 0; j < ss; j++)
+    {
+      if (s[j] == word[word_i])
+      {
+        word_i++;
+        if (word_i == ws)
+        {
+          if (j == ss - 1 && std::get<2>(pt->v_[v_i]) == true)
+          {
+            result.emplace_back(word, std::get<3>(pt->v_[v_i]), 0);
+          }
+          return result;
+        }
+        else if (j == ss - 1)
+        {
+          if (std::get<1>(pt->v_[v_i]) == nullptr)
+            return result;
+          std::shared_ptr<PTrie> child = std::get<1>(pt->v_[v_i]);
+          pt = child;
+          v_size = pt->v_.size();
+          v_i = 0;
+        }
+      }
+      else if (v_i == v_size - 1)
+      {
+        return result;
+      }
+      else
+      {
+        v_i++;
+        break;
+      }
+    }
+  }
+}
 
-  return std::vector<std::tuple<std::string, unsigned long, unsigned int>>();
+std::shared_ptr<PTrie> PTrie::get_ptr()
+{
+  /**
+   * IMPORTANT: A shared_ptr should exist on this PTrie
+   */
+  return shared_from_this();
 }
 
 void print_result(const std::vector<std::tuple<std::string, unsigned long, unsigned int>>& result)

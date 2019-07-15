@@ -4,7 +4,8 @@
 
 int main()
 {
-  PTrie ptrie;
+  PTrie pt;
+  std::shared_ptr<PTrie> ptrie = std::make_shared<PTrie>(pt);
 
   std::vector<std::string> v = {
     "navet", "maison", "maisonnette", "maisonnettes", "mai",
@@ -13,19 +14,24 @@ int main()
   };
 
   std::cout << "Base:" << std::endl;
-  ptrie.print();
+  ptrie->print();
 
   unsigned long frequence = 1;
   for (auto e : v)
   {
     std::cout << "Insert " << e << " f=" << frequence << std::endl;
-    ptrie.insert(e, frequence++);
-    ptrie.print();
+    ptrie->insert(e, frequence++);
+    ptrie->print();
   }
 
   std::cout << "Sort" << std::endl;
-  ptrie.sort();
-  ptrie.print();
+  ptrie->sort();
+  ptrie->print();
+  std::vector<std::tuple<std::string, unsigned long, unsigned int>> r =ptrie->search("maison",0);
+  std::cout << "Search maison: " << std::endl;
+  std::cout << "size: " << r.size() << std::endl;
+  std::cout << "freq: " << std::get<1>(r[0]) << std::endl;
+  std::cout << "distance: " << std::get<2>(r[0]) << std::endl;
 
   return 0;
 }

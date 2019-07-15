@@ -3,7 +3,7 @@
 #include <memory>
 #include <utility>
 
-class PTrie
+class PTrie: public std::enable_shared_from_this<PTrie>
 {
 private:
   std::vector<std::tuple<std::string, std::shared_ptr<PTrie>, bool, unsigned long>> v_;
@@ -28,6 +28,11 @@ private:
 
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
   search0(const std::string& word);
+
+  //Utilisé pour pouvoir stocker this dans la même variable que les ptrie fils.
+  //https://en.cppreference.com/w/cpp/memory/enable_shared_from_this
+public:
+  std::shared_ptr<PTrie> get_ptr();
 };
 
 void print_result(const std::vector<std::tuple<std::string, unsigned long, unsigned int>>& result);
