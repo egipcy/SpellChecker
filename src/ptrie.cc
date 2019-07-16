@@ -1,6 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <memory>
+
 #include "ptrie.hh"
 
 PTrie::PTrie()
@@ -18,59 +19,51 @@ void PTrie::insert(const std::string& word, unsigned long frequence)
   if (index == v_.size()) // Word doesn't exist
   {
     // New edge
-    v_.emplace_back(word, nullptr, true, frequence);
+    v_.emplace_back(to_bitset(word), nullptr, frequence);
     return;
   }
 
   // else
   // Check word
   auto& tuple = v_[index];
-  auto& w = std::get<0>(tuple);
+  auto& w = std::get<STRING>(tuple);
 
   // word = prefix + suffix1
   // w = prefix + suffix2
   size_t i;
-  for (i = 1; i < word.size() && i < w.size() && word[i] == w[i]; i++)
+  for (i = 1; i < word.size() && i < w.size() && is_equal(word[i], w[i]); i++)
     continue;
   std::string prefix = word.substr(0, i);
   std::string suffix1 = word.substr(i, word.size() - i);
-  std::string suffix2 = w.substr(i, w.size() - i);;
+  std::vector<std::bitset<8>> suffix2 = {w.begin() + i, w.end()};
 
   // No suffixes
   if (suffix1.size() == 0 && suffix2.size() == 0)
-  {
-    std::get<2>(tuple) = true;
-    std::get<3>(tuple) = frequence;
-  }
+    std::get<FREQUENCE>(tuple) = frequence;
   else
   {
     if (suffix2.size() != 0)
     {
       // Edge value set to shared prefix
-      w = prefix;
+      w = to_bitset(prefix);
 
-      // Remember the children, the existence value and the frequence
-      auto children = std::get<1>(tuple);
-      auto value = std::get<2>(tuple);
-      auto freq = std::get<3>(tuple);
+      // Remember the child, the existence value and the frequence
+      auto child = std::get<CHILD>(tuple);
+      auto freq = std::get<FREQUENCE>(tuple);
 
-      if (suffix1.size() != 0)
-      {
-        // w isn't a valid word anymore
-        std::get<2>(tuple) = false;
-        std::get<3>(tuple) = 0;
-      }
+      if (suffix1.size() != 0) // w isn't a valid word anymore
+        std::get<FREQUENCE>(tuple) = 0;
       else  // Update frequence value
-        std::get<3>(tuple) = frequence;
+        std::get<FREQUENCE>(tuple) = frequence;
 
       // New node
-      std::get<1>(tuple) = std::make_shared<PTrie>();
-      std::get<1>(tuple)->v_.emplace_back(suffix2, children, value, freq);
+      std::get<CHILD>(tuple) = std::make_shared<PTrie>();
+      std::get<CHILD>(tuple)->v_.emplace_back(suffix2, child, freq);
     }
-    // Insert suffix1 in children
-    else if (!std::get<1>(tuple))
-      std::get<1>(tuple) = std::make_shared<PTrie>();
-    std::get<1>(tuple)->insert(suffix1, frequence);
+    // Insert suffix1 in child
+    else if (!std::get<CHILD>(tuple))
+      std::get<CHILD>(tuple) = std::make_shared<PTrie>();
+    std::get<CHILD>(tuple)->insert(suffix1, frequence);
   }
 }
 
@@ -80,9 +73,9 @@ void PTrie::print(int nb_indent) const
   {
     for (int i = 0; i < nb_indent; i++)
       std::cout << ' ';
-    std::cout << std::get<0>(e) << " " << std::get<2>(e) << " f=" << std::get<3>(e) << std::endl;
-    if (std::get<1>(e))
-      std::get<1>(e)->print(nb_indent + 1);
+    std::cout << to_string(std::get<STRING>(e)) << " f=" << std::get<FREQUENCE>(e) << std::endl;
+    if (std::get<CHILD>(e))
+      std::get<CHILD>(e)->print(nb_indent + 1);
   }
   if (nb_indent == 0)
     std::cout << std::endl;
@@ -92,11 +85,11 @@ void PTrie::sort()
 {
   // Recursive calls
   for (auto e: v_)
-    if (std::get<1>(e))
-      std::get<1>(e)->sort();
+    if (std::get<CHILD>(e))
+      std::get<CHILD>(e)->sort();
 
   // Sort v_'s strings
-  std::sort(v_.begin(), v_.end());
+  std::sort(v_.begin(), v_.end(), [](auto a, auto b) {return to_string(std::get<STRING>(a)) < to_string(std::get<STRING>(b));});
 }
 
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
@@ -116,21 +109,20 @@ void PTrie::serialize(std::ofstream& file)
   {
     auto e = v_[i];
 
-    file << std::get<0>(e) << std::endl;
-    file << std::get<2>(e) << std::endl;
-    file << std::get<3>(e) << std::endl;
-    if (std::get<1>(e))
+    file << to_string(std::get<STRING>(e)) << std::endl;
+    file << std::get<FREQUENCE>(e) << std::endl;
+    if (std::get<CHILD>(e))
     {
       file << "0" << std::endl;
-      std::get<1>(e)->serialize(file);
+      std::get<CHILD>(e)->serialize(file);
     }
     else
-      file << "1" << std::endl;
+      file << std::endl;
 
     if (i < v_.size() - 1)
-      file << "no end" << std::endl;
+      file << "1" << std::endl;
   }
-  file << "end" << std::endl;
+  file << std::endl;
 }
 
 void PTrie::deserialize(std::ifstream& file)
@@ -140,9 +132,6 @@ void PTrie::deserialize(std::ifstream& file)
   if (!std::getline(file, line))
     return;
   std::string s = line;
-
-  std::getline(file, line);
-  bool b = line != "0";
 
   std::getline(file, line);
   unsigned long i = std::stoul(line);
@@ -155,10 +144,10 @@ void PTrie::deserialize(std::ifstream& file)
     ptrie->deserialize(file);
   }
 
-  v_.push_back(std::make_tuple(s, ptrie, b, i));
+  v_.push_back(std::make_tuple(to_bitset(s), ptrie, i));
 
   std::getline(file, line);
-  if (line == "no end")
+  if (line == "1")
     deserialize(file);
 }
 
@@ -166,7 +155,7 @@ size_t PTrie::search_prefix(const std::string& word) const
 {
   size_t i;
   for (i = 0; i < v_.size(); i++)
-    if (std::get<0>(v_[i])[0] == word[0])
+    if (is_equal(std::get<STRING>(v_[i])[0], word[0]))
       break;
   return i;
 }
@@ -187,7 +176,7 @@ PTrie::search0(const std::string& word)
   int v_i = 0;
   while (1)
   {
-    std::string s = std::get<0>(pt->v_[v_i]);
+    auto s = std::get<STRING>(pt->v_[v_i]);
     size_t ss = s.size();
     for (int j = 0; j < ss; j++)
     {
@@ -196,17 +185,17 @@ PTrie::search0(const std::string& word)
         word_i++;
         if (word_i == ws)
         {
-          if (j == ss - 1 && std::get<2>(pt->v_[v_i]) == true)
+          if (j == ss - 1 && std::get<FREQUENCE>(pt->v_[v_i]) != 0)
           {
-            result.emplace_back(word, std::get<3>(pt->v_[v_i]), 0);
+            result.emplace_back(word, std::get<FREQUENCE>(pt->v_[v_i]), 0);
           }
           return result;
         }
         else if (j == ss - 1)
         {
-          if (std::get<1>(pt->v_[v_i]) == nullptr)
+          if (std::get<CHILD>(pt->v_[v_i]) == nullptr)
             return result;
-          pt = std::get<1>(pt->v_[v_i]).get();
+          pt = std::get<CHILD>(pt->v_[v_i]).get();
           v_size = pt->v_.size();
           v_i = 0;
         }
@@ -240,4 +229,31 @@ void print_result(const std::vector<std::tuple<std::string, unsigned long, unsig
   }
 
   std::cout << "]" << std::endl;
+}
+
+// TODO: try with cast
+std::vector<std::bitset<8>> to_bitset(const std::string& s)
+{
+  std::vector<std::bitset<8>> ret(s.size());
+  for (size_t i = 0; i < s.size(); i++)
+    ret[i] = s[i];
+  return ret;
+}
+
+std::string to_string(const std::vector<std::bitset<8>>& v)
+{
+  std::string ret(v.size(), '0');
+  for (size_t i = 0; i < v.size(); i++)
+    ret[i] = (char)v[i].to_ulong();
+  return ret;
+}
+
+bool is_equal(std::bitset<8> b, char c)
+{
+  return b == std::bitset<8>(c);
+}
+
+bool is_equal(char c, std::bitset<8> b)
+{
+  return is_equal(b, c);
 }
