@@ -10,17 +10,21 @@ class color:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-p = subprocess.Popen(['./memory.sh', './TextMiningCompiler words.txt mydict.bin'],
-                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-res = p.communicate()
-
-memory = float(res[1][:-1]) / 1024
-
-print(('TextMiningCompiler consommation max: '
-        + (color.OKGREEN if memory < 512 else color.FAIL)
-        + '%.0f MB' + color.ENDC) % (memory))
+response = raw_input('Test memory (y/N): ')
 print('\n')
+
+if response in ['y', 'Y']:
+    p = subprocess.Popen(['./memory.sh', './TextMiningCompiler words.txt mydict.bin'],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    res = p.communicate()
+
+    memory = float(res[1][:-1]) / 1024
+
+    print(('TextMiningCompiler consommation max: '
+            + (color.OKGREEN if memory < 512 else color.FAIL)
+            + '%.0f MB' + color.ENDC) % (memory))
+    print('\n')
 
 
 
@@ -35,8 +39,8 @@ nb_omg = 0
 for distance in range(1):
     for word in words:
         b = False
-        tot_time = 0
-        ref_tot_time = 0
+        tot_time = 0.
+        ref_tot_time = 0.
         nb_loop = 0
         while tot_time < 1:
             nb_loop += 1
@@ -60,8 +64,8 @@ for distance in range(1):
                 b = True
                 break
 
-        nb_req = int(nb_loop / tot_time)
-        ref_nb_req = int(nb_loop / ref_tot_time)
+        nb_req = nb_loop / tot_time
+        ref_nb_req = nb_loop / ref_tot_time
 
         print((color.FAIL if b else color.OKGREEN) + request + color.ENDC)
         if b:
@@ -70,24 +74,27 @@ for distance in range(1):
         else:
             if nb_req < min_req[min(distance, 2)]:
                 nb_null += 1
-                print(color.BOLD + color.FAIL + str(nb_req) + 'r/s' + color.ENDC + ' < '
-                    + color.HEADER + str(min_req[min(distance, 2)]) + 'r/s' + color.ENDC + ' < '
-                    + color.OKBLUE + str(ref_nb_req) + 'r/s' + color.ENDC)
+                print((color.BOLD + color.FAIL + '%.2fr/s' + color.ENDC + ' < '
+                    + color.HEADER + '%.2fr/s' + color.ENDC + ' < '
+                    + color.OKBLUE + '%.2fr/s' + color.ENDC) % (nb_req, min_req[min(distance, 2)], ref_nb_req))
             elif nb_req > ref_nb_req:
                 nb_ok += 1
-                print(color.HEADER + str(min_req[min(distance, 2)]) + 'r/s' + color.ENDC + ' < '
-                    + color.OKBLUE + str(ref_nb_req) + 'r/s' + color.ENDC + ' < '
-                    + color.BOLD + color.YELLOW + color.UNDERLINE + str(nb_req) + 'r/s' + color.ENDC)
+                print((color.HEADER + '%.2fr/s' + color.ENDC + ' < '
+                    + color.OKBLUE + '%.2fr/s' + color.ENDC + ' < '
+                    + color.BOLD + color.YELLOW + color.UNDERLINE + '%.2fr/s' + color.ENDC) % (min_req[min(distance, 2)], ref_nb_req, nb_req))
             else:
                 nb_omg += 1
-                print(color.HEADER + str(min_req[min(distance, 2)]) + 'r/s' + color.ENDC + ' < '
-                    + color.BOLD + color.OKGREEN + str(nb_req) + 'r/s' + color.ENDC + ' < '
-                    + color.OKBLUE + str(ref_nb_req) + 'r/s' + color.ENDC)
+                print((color.HEADER + '%.2fr/s' + color.ENDC + ' < '
+                    + color.BOLD + color.OKGREEN + '%.2fr/s' + color.ENDC + ' < '
+                    + color.OKBLUE + '%.2fr/s' + color.ENDC) % (min_req[min(distance, 2)], nb_req, ref_nb_req))
 
         print('\n')
 
 nb_tot = nb_fails + nb_null + nb_ok + nb_omg
-print(((color.OKGREEN if memory < 512 else color.FAIL) + '%.0f MB\n' + color.ENDC
-        + color.FAIL + 'Fails:\t%d%%\n' + color.HEADER + 'Null:\t%d%%\n'
+
+if response in ['y', 'Y']:
+    print(((color.OKGREEN if memory < 512 else color.FAIL) + '%.0f MB\n' + color.ENDC) % (memory))
+
+print((color.FAIL + 'Fails:\t%d%%\n' + color.HEADER + 'Null:\t%d%%\n'
         + color.OKGREEN + 'OK:\t%d%%\n' + color.YELLOW + 'OMG:\t%d%%' + color.ENDC)
-        % (memory, nb_fails / nb_tot * 100, nb_null / nb_tot * 100, nb_ok / nb_tot * 100, nb_omg / nb_tot * 100))
+        % (nb_fails / nb_tot * 100, nb_null / nb_tot * 100, nb_ok / nb_tot * 100, nb_omg / nb_tot * 100))
