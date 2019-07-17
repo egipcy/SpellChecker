@@ -3,12 +3,11 @@
 #include <memory>
 #include <utility>
 #include <fstream>
-#include <bitset>
 
 class PTrie
 {
 private:
-  std::vector<std::tuple<std::vector<std::bitset<8>>, std::shared_ptr<PTrie>, unsigned long>> v_;
+  std::vector<std::tuple<std::string, std::shared_ptr<PTrie>, unsigned long>> v_;
 
 public:
   enum type {STRING, CHILD, FREQUENCE};
@@ -35,8 +34,3 @@ private:
 };
 
 void print_result(const std::vector<std::tuple<std::string, unsigned long, unsigned int>>& result);
-
-std::vector<std::bitset<8>> to_bitset(const std::string& s);
-std::string to_string(const std::vector<std::bitset<8>>& v);
-bool is_equal(std::bitset<8> b, char c);
-bool is_equal(char c, std::bitset<8> b);
