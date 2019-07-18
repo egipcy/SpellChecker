@@ -6,19 +6,7 @@ int main()
 {
   std::cout << "\033[1;37;40m" << "Search (d=0)" << "\033[0m" << std::endl;
   PTrie ptrie;
-
-  std::vector<std::string> v = {
-    "navet", "maison", "maisonnette", "maisonnettes", "mai",
-    "maitre", "navet", "naviguer", "navette", "nouveau", "machoire",
-    "maitresse", "maitrise"
-  };
-
-  unsigned long frequence = 1;
-  for (auto e : v)
-  {
-    ptrie.insert(e, frequence++);
-  }
-  ptrie.sort();
+  ptrie.deserialize("test_dict.bin");
   std::vector<std::tuple<std::string, unsigned long, unsigned int>> r = ptrie.search("maison",0);
   assert(r.size() == 1);
   assert(std::get<1>(r[0]) == 2);

@@ -23,6 +23,7 @@ PTrie::PTrie(PTrie* parent, int file_size, char* chunk, int data_start):
   ,file_size_(file_size)
   ,chunk_(chunk)
   ,data_start_(data_start)
+  ,data_chunk_(chunk+data_start)
 {}
 
 void PTrie::insert(const std::string& word, unsigned long frequence)
@@ -140,9 +141,10 @@ void PTrie::save_nodes_meta(std::ofstream& file, int depth, int& offset)
   char sc = ';';
   char n = '\n';
   const std::string ds = std::to_string(depth);
-  const std::string os = std::to_string(offset);
+  std::string os;
   for (size_t i = 0; i < v_.size(); i++)
   {
+    os = std::to_string(offset);
     const std::string ss = std::to_string(std::get<STRING>(v_[i]).size());
     file.write(ds.c_str(), ds.size());
     file.write(&c, sizeof(c));
@@ -222,6 +224,7 @@ void PTrie::build_compressed_trie(char* chunk, int data_start, int file_size)
   //init root
   chunk_ = chunk;
   data_start_ = data_start;
+  data_chunk_ = chunk_ + data_start_;
   file_size_ = file_size;
   parent_ = nullptr;
   int curr_pos = 2; //skipped "0," as build node starts reading at offset
@@ -338,50 +341,40 @@ PTrie::search_rec(const std::string& word, const std::string& prefix_w, unsigned
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search0(const std::string& word)
 {
+  const char* cword = word.c_str();
   std::vector<std::tuple<std::string, unsigned long, unsigned int>> result;
   PTrie* pt = this;
-  size_t v_size = pt->v_.size();
+  const size_t v_size = pt->v2_.size();
   if (!v_size)
     return result;
-  size_t ws = word.size();
+  const size_t ws = word.size();
   int word_i = 0;
   int v_i = 0;
+  bool break_after_for;
   while (1)
   {
-    auto s = std::get<STRING>(pt->v_[v_i]);
-    size_t ss = s.size();
-    for (int j = 0; j < ss; j++)
+    break_after_for = true;
+    for (const auto& v: pt->v2_)
     {
-      if (s[j] == word[word_i])
+      if (std::get<G::COUNT>(v) <= ws-word_i
+          && !memcmp(data_chunk_+std::get<G::OFFSET>(v), cword+word_i, std::get<G::COUNT>(v)))
       {
-        word_i++;
+        word_i += std::get<G::COUNT>(v);
         if (word_i == ws)
         {
-          if (j == ss - 1 && std::get<FREQUENCE>(pt->v_[v_i]) != 0)
-          {
-            result.emplace_back(word, std::get<FREQUENCE>(pt->v_[v_i]), 0);
-          }
+          result.emplace_back(word, std::get<G::FREQ>(v), 0);
           return result;
         }
-        else if (j == ss - 1)
-        {
-          if (std::get<CHILD>(pt->v_[v_i]) == nullptr)
-            return result;
-          pt = std::get<CHILD>(pt->v_[v_i]).get();
-          v_size = pt->v_.size();
-          v_i = 0;
-        }
-      }
-      else if (v_i == v_size - 1)
-      {
-        return result;
-      }
-      else
-      {
-        v_i++;
+        pt = std::get<G::SON>(v).get();
+        if (pt == nullptr)
+          return result;
+        break_after_for = false;
         break;
       }
     }
+    
+    if (break_after_for)
+      break;
   }
 }
 
