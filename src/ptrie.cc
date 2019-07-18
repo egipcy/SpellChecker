@@ -11,8 +11,6 @@
 #include <sstream>
 #include <cstring>
 #include <stdlib.h>
-#include <climits>
-
 #include "ptrie.hh"
 
 PTrie::PTrie()
@@ -158,7 +156,6 @@ void PTrie::save_nodes_meta(std::ofstream& file, int depth, int& offset)
       file.write(fs.c_str(), fs.size());
     } 
     file.write(&sc, sizeof(sc));
-
     offset += std::get<STRING>(v_[i]).size();
     if (std::get<CHILD>(v_[i]) != nullptr)
       std::get<CHILD>(v_[i])->save_nodes_meta(file, depth + 1, offset);
@@ -215,7 +212,6 @@ void PTrie::deserialize(const char* file_name)
     continue;
   }
   int dataStart = atoi(chunk+file_size+i+1); //at *(chunk+dataStart) starts the data
-
   build_compressed_trie(chunk, dataStart, file_size);
 }
 
@@ -251,84 +247,72 @@ void PTrie::build_compressed_trie(char* chunk, int data_start, int file_size)
  */
 void PTrie::build_node(int depth, int last_depth, int& curr_pos)
 {
-  std::cout << "depth " << depth;
-  if (last_depth < depth)
-    return parent_->build_node(depth - 1, last_depth, curr_pos);
-  std::cout << "depth " << std::endl;
-
-  //They will be later assign to numerical variables
-  int dep = last_depth;
-  int of,co;
-  unsigned long fr = 0;
-
-  while (curr_pos < data_start_)
+  PTrie* pt = this;
+  int current_depth = depth;
+  int read_depth = last_depth;
+  while(1)
   {
-    std::cout << "a " << std::endl;
-
-    //offset
-    of = atoi(chunk_+curr_pos++);
-    std::cout << "b " << std::endl;
-
-    next_comma(curr_pos);
-    std::cout << "c " << std::endl;
-    co = atoi(chunk_+curr_pos);
-    std::cout << "d " << std::endl;
-
-    while (*(chunk_+curr_pos++) != ';')
+    if (read_depth < current_depth)
     {
-      if (*(chunk_+curr_pos) == ',')
+      current_depth--;
+      pt = pt->parent_;
+      continue;
+    } 
+
+    //They will be later assign to numerical variables
+    int dep = read_depth;
+    int of,co;
+    unsigned long fr = 0;
+
+    while (curr_pos < data_start_)
+    {
+      //offset
+      of = atoi(chunk_+curr_pos++);
+      next_comma(curr_pos);
+
+      co = atoi(chunk_+curr_pos);
+
+      while (*(chunk_+curr_pos++) != ';')
       {
-        fr = strtoul(chunk_+(++curr_pos), nullptr, 10);
+        if (*(chunk_+curr_pos) == ',')
+        {
+          fr = strtoul(chunk_+(++curr_pos), nullptr, 10);
+        }
       }
+      pt->v2_.emplace_back(of, co, nullptr, fr);
+      if (curr_pos >= data_start_-1)
+      {
+        return;
+      }
+      
+      //Reading next depth
+      read_depth = atoi(chunk_+curr_pos++);
+      next_comma(curr_pos);
+
+      //if same dep than current node depth continue in the while
+      if (read_depth == current_depth)
+      {
+        fr = 0;
+        continue;
+      }
+      else
+        break;
     }
-    std::cout << "e " 
-    << v2_.size() 
-    << " " <<of
-    << " " <<co
-    << " " << fr
-    << std::endl;
 
-    v2_.emplace_back(of, co, nullptr, fr);
-    std::cout << "e2 " << std::endl;
-
-    if (curr_pos >= data_start_-1)
+    if (read_depth < current_depth)
     {
-      std::cout << "3 " << std::endl;
-      return;
-    }
-    std::cout << "f " << std::endl;
-    
-    //Reading next depth
-    dep = atoi(chunk_+curr_pos++);
-    std::cout << "g " << std::endl;
-
-    next_comma(curr_pos);
-    std::cout << "h " << std::endl;
-
-    //if same dep than current node depth continue in the while
-    if (dep == depth)
-    {
-      fr = 0;
+      current_depth--;
+      pt = pt->parent_;
       continue;
     }
-    else
-      break;
+
+    //else
+    PTrie p(pt, file_size_, chunk_, data_start_);
+    std::shared_ptr<PTrie> new_p = std::make_shared<PTrie>(p);
+    std::get<G::SON>(pt->v2_[pt->v2_.size()-1]) = new_p;
+    current_depth++;
+    pt = new_p.get();
   }
-  std::cout << "i " << std::endl;
-
-  if (dep < depth)
-    return parent_->build_node(depth - 1, dep, curr_pos);
-  //else
-  std::cout << 0 << std::endl;
-  PTrie p(this, file_size_, chunk_, data_start_);
-  std::cout << 1 << std::endl;
-
-  std::shared_ptr<PTrie> pt = std::make_shared<PTrie>(p);
-  std::cout << 2 << std::endl;
-
-  std::get<2>(v2_[v2_.size()-1]) = pt;
-  std::cout << 3 << std::endl;
-  return pt->build_node(depth+1, dep, curr_pos);
 }
 
 /**
@@ -391,7 +375,8 @@ PTrie::search0(const std::string& word)
         word_i += std::get<G::COUNT>(v);
         if (word_i == ws)
         {
-          result.emplace_back(word, std::get<G::FREQ>(v), 0);
+          if (std::get<G::FREQ>(v) != 0)
+            result.emplace_back(word, std::get<G::FREQ>(v), 0);
           return result;
         }
         pt = std::get<G::SON>(v).get();
@@ -429,7 +414,7 @@ PTrie::searchN(const std::string& word, const std::string& prefix_w, unsigned in
 
     if (l <= length && child) // our word is ok
     {
-      auto v = child->searchN(word.size() <= w.size() ? "" : word.substr(w.size()), prefix_w + w, length - l, origin_length);
+      auto v = child->search_rec(word.substr(w.size() + 1), prefix_w + w, length - l, origin_length);
 
       // ret = ret + v
       ret.reserve(ret.size() + v.size());
@@ -462,69 +447,4 @@ std::tuple<unsigned int, bool>
 damereau_levenshtein(const std::string& w, const std::string& prefix_word, const std::string& word, unsigned int length, unsigned long freq)
 {
   // 4 operations: insertion, deletion, edition, inversion
-  // No need to exceed length in term of distance
-  // return <X, true> if freq != 0 and w is accepted
-  // word = prefix_word + ...
-
-  auto word_used = freq == 0 ? prefix_word : word;
-
-  std::vector<std::vector<unsigned int>> d(w.size() + 1);
-  for (size_t i = 0; i <= w.size(); i++)
-  {
-    d[i] = std::vector<unsigned int>(word_used.size() + 1);
-    d[i][0] = i;
-  }
-  for (size_t j = 1; j <= word_used.size(); j++)
-    d[0][j] = j;
-
-  unsigned int sub_or_exact = 0;
-  bool b = freq != 0;
-  bool b_break = false;
-  for (size_t i = 1; i <= w.size(); i++)
-    for (size_t j = 1; j <= word_used.size(); j++)
-    {
-      sub_or_exact = w[i - 1] == word_used[j - 1] ? 0 : 1;
-
-      d[i][j] = std::min({
-        d[i - 1][j] + 1,
-        d[i][j - 1] + 1,
-        d[i - 1][j - 1] + sub_or_exact});
-
-      if (i > 1 && j > 1 && w[i - 1] == word_used[j - 2] && w[i - 2] == word_used[j - 1])
-        d[i][j] = std::min(d[i][j], d[i - 2][j - 2] + sub_or_exact);
-
-      if (d[i][j] > length)
-      {
-        unsigned int min = d[i][0];
-        for (unsigned int k = 1; k < j && min > length; k++)
-          min = std::min(min, d[i][k]);
-        for (auto it = d[i - 1].cbegin() + j - 1; it < d[i - 1].cend() && min > length; it++)
-          min = std::min(min, *it);
-
-        if (min > length)
-        {
-          b = false;
-          b_break = true;
-          i = w.size() + 1;
-          break;
-        }
-      }
-    }
-
-    /*std::cout << "  ";
-    for (size_t j = 1; j <= word_used.size(); j++)
-      std::cout << word_used[j - 1] << " ";
-    std::cout << std::endl;
-
-    for (size_t i = 1; i <= w.size(); i++)
-    {
-      std::cout << w[i - 1] << " ";
-      for (size_t j = 1; j <= word_used.size(); j++)
-        std::cout << d[i][j] << " ";
-      std::cout << std::endl;
-    }*/
-
-    return std::tuple(b_break ? length + 1 : d[w.size()][prefix_word.size()], b && d[w.size()][word.size()] <= length);
 }
-
-
