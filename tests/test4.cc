@@ -1,9 +1,10 @@
 #include <iostream>
-
+#include <assert.h>
 #include "../src/ptrie.hh"
 
 int main()
 {
+  std::cout << "\033[1;37;40m" << "Binary serialization" << "\033[0m" << std::endl;
   PTrie ptrie;
 
   std::vector<std::string> v = {
@@ -12,28 +13,16 @@ int main()
     "maitresse", "maitrise"
   };
 
-  std::cout << "Base:" << std::endl;
-  ptrie.print();
-
   unsigned long frequence = 1;
   for (auto e : v)
   {
-    std::cout << "Insert " << e << " f=" << frequence << std::endl;
     ptrie.insert(e, frequence++);
-    ptrie.print();
   }
-
-  std::cout << "Sort" << std::endl;
   ptrie.sort();
-  ptrie.print();
-/*
-  std::ofstream f1("file.txt");
+  std::ofstream f1("test_dict.bin", std::ofstream::binary);
   ptrie.serialize(f1);
-
-  PTrie ptrie2;
-  std::ifstream f2("file.txt");
-  ptrie2.deserialize(f2);
-  ptrie2.print();
-*/
+  f1.close();
+  ptrie.deserialize("test_dict.bin");
+  ptrie.print_compressed(0);
   return 0;
 }
