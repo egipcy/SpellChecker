@@ -19,10 +19,10 @@ int main()
     ptrie.insert(e, frequence++);
   }
   ptrie.sort();
-  std::ofstream f1("mydict.bin", std::ofstream::binary);
+  std::ofstream f1("test_dict.bin", std::ofstream::binary);
   ptrie.serialize(f1);
   f1.close();
-  ptrie.deserialize("mydict.bin");
+  ptrie.deserialize("test_dict.bin");
   
   return 0;
 }
