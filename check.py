@@ -28,8 +28,10 @@ if response in ['y', 'Y']:
 
 
 
-words = ['test', 'toto']
+derive_stream = False
+ref_nbrps = [212089.1, 54522.6, 186.0]
 min_req = [3000, 300, 30]
+nbreq_per_dist = [200000, 20000, 2000]
 
 nb_fails = 0
 nb_null = 0
@@ -37,58 +39,77 @@ nb_ok = 0
 nb_omg = 0
 
 for distance in range(1):
-    for word in words:
-        b = False
-        tot_time = 0.
-        ref_tot_time = 0.
-        nb_loop = 0
-        while tot_time < 1:
-            nb_loop += 1
-            request = 'approx ' + str(distance) + ' ' + word
+    b = False
+    tot_time = 0.
+    ref_tot_time = 0.
+    nb_loop = 0
+    while tot_time < 1:
+        nb_loop += nbreq_per_dist[distance]
 
-            p = subprocess.Popen([
-                '/bin/sh', '-c', 'time -f "%e" ./TextMiningApp mydict.bin'],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-            res = p.communicate(request)
-            tot_time += float(res[1][:-1])
-            answer = res[0]
+        p = subprocess.Popen([
+            '/bin/sh', '-c', 'shuf words.txt | head -' + str(nbreq_per_dist[distance]) + ' | cut -f1 | \
+            while read word; do echo approx 0 $word; done > /tmp/input.txt \
+            && /usr/bin/time ./TextMiningApp ./mydict.bin < /tmp/input.txt' + (' > /dev/null ' if derive_stream else '') + ' \
+            && printf "{{{" \
+            && /usr/bin/time ./ref/refTextMiningApp ./ref/refdict.bin < /tmp/input.txt' + (' > /dev/null' if derive_stream else '')],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        res = p.communicate()
 
-            ref_p = subprocess.Popen([
-                '/bin/sh', '-c', 'time -f "%e" ./ref/refTextMiningApp ref/refdict.bin'],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-            ref_res = ref_p.communicate(request)
-            ref_tot_time += float(ref_res[1].split()[-1])
-            ref_answer = ref_res[0]
+        res1 = res[1].split()
+        time = -1
+        ref_time = -1
+        for e in res1:
+            if e[-4:] == 'user':
+                if time == -1:
+                    time = float(e[:-4])
+                else:
+                    ref_time = float(e[:-4])
+                    break
+
+        tot_time += time
+        ref_tot_time += ref_time
+
+        if not derive_stream:
+            print(res)
+            answer, ref_answer = res[0].split('{{{')
 
             if answer != ref_answer:
                 b = True
                 break
 
-        nb_req = nb_loop / tot_time
-        ref_nb_req = nb_loop / ref_tot_time
+    nb_req = nb_loop / tot_time
+    ref_nb_req = nb_loop / ref_tot_time
 
-        print((color.FAIL if b else color.OKGREEN) + request + color.ENDC)
-        if b:
-            nb_fails += 1
-            print(color.OKBLUE + ref_answer + color.ENDC)
+    print((color.FAIL if b else color.OKGREEN) + 'Distance ' + str(distance) + color.ENDC)
+    if b:
+        nb_fails += 1
+    else:
+        if nb_req < min_req[min(distance, 2)]:
+            nb_null += 1
+            print(('Real: ' + color.BOLD + color.FAIL + '%dr/s' + color.ENDC + ' < '
+                + color.HEADER + '%dr/s' + color.ENDC + ' < '
+                + color.OKBLUE + '%dr/s' + color.ENDC) % (nb_req, min_req[min(distance, 2)], ref_nb_req))
+            print(('Norm: ' + color.BOLD + color.FAIL + '%dr/s' + color.ENDC + ' < '
+                + color.HEADER + '%dr/s' + color.ENDC + ' < '
+                + color.OKBLUE + '%dr/s' + color.ENDC) % (nb_req * ref_nbrps[distance] / ref_nb_req, min_req[min(distance, 2)], ref_nbrps[distance]))
+        elif nb_req > ref_nb_req:
+            nb_omg += 1
+            print(('Real: ' + color.HEADER + '%dr/s' + color.ENDC + ' < '
+                + color.OKBLUE + '%dr/s' + color.ENDC + ' < '
+                + color.BOLD + color.YELLOW + color.UNDERLINE + '%dr/s' + color.ENDC) % (min_req[min(distance, 2)], ref_nb_req, nb_req))
+            print(('Norm: ' + color.HEADER + '%dr/s' + color.ENDC + ' < '
+                + color.OKBLUE + '%dr/s' + color.ENDC + ' < '
+                + color.BOLD + color.YELLOW + color.UNDERLINE + '%dr/s' + color.ENDC) % (min_req[min(distance, 2)], ref_nbrps[distance], nb_req * ref_nbrps[distance] / ref_nb_req))
         else:
-            if nb_req < min_req[min(distance, 2)]:
-                nb_null += 1
-                print((color.BOLD + color.FAIL + '%.2fr/s' + color.ENDC + ' < '
-                    + color.HEADER + '%.2fr/s' + color.ENDC + ' < '
-                    + color.OKBLUE + '%.2fr/s' + color.ENDC) % (nb_req, min_req[min(distance, 2)], ref_nb_req))
-            elif nb_req > ref_nb_req:
-                nb_ok += 1
-                print((color.HEADER + '%.2fr/s' + color.ENDC + ' < '
-                    + color.OKBLUE + '%.2fr/s' + color.ENDC + ' < '
-                    + color.BOLD + color.YELLOW + color.UNDERLINE + '%.2fr/s' + color.ENDC) % (min_req[min(distance, 2)], ref_nb_req, nb_req))
-            else:
-                nb_omg += 1
-                print((color.HEADER + '%.2fr/s' + color.ENDC + ' < '
-                    + color.BOLD + color.OKGREEN + '%.2fr/s' + color.ENDC + ' < '
-                    + color.OKBLUE + '%.2fr/s' + color.ENDC) % (min_req[min(distance, 2)], nb_req, ref_nb_req))
+            nb_ok += 1
+            print(('Real: ' + color.HEADER + '%dr/s' + color.ENDC + ' < '
+                + color.BOLD + color.OKGREEN + '%dr/s' + color.ENDC + ' < '
+                + color.OKBLUE + '%dr/s' + color.ENDC) % (min_req[min(distance, 2)], nb_req, ref_nb_req))
+            print(('Norm: ' + color.HEADER + '%dr/s' + color.ENDC + ' < '
+                + color.BOLD + color.OKGREEN + '%dr/s' + color.ENDC + ' < '
+                + color.OKBLUE + '%dr/s' + color.ENDC) % (min_req[min(distance, 2)], nb_req * ref_nbrps[distance] / ref_nb_req, ref_nbrps[distance]))
 
-        print('\n')
+    print('\n')
 
 nb_tot = nb_fails + nb_null + nb_ok + nb_omg
 

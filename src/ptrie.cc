@@ -130,12 +130,7 @@ void PTrie::sort()
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search(const std::string& word, unsigned int length)
 {
-  if (length == 0)
-    return search0(word);
-
-  // TODO
-
-  return std::vector<std::tuple<std::string, unsigned long, unsigned int>>();
+  return search_rec(word, "", length, length);
 }
 
 void PTrie::save_nodes_meta(std::ofstream& file, int depth, int& offset)
@@ -199,12 +194,12 @@ void PTrie::serialize(std::ofstream& file)
   file.write(pos.c_str(), pos.size()); //Append the data offset at the end
 }
 
-void PTrie::deserialize(std::string file_name)
+void PTrie::deserialize(const char* file_name)
 {
-  int fd = ::open(file_name.c_str(), O_RDONLY);
+  int fd = ::open(file_name, O_RDONLY);
   if (fd < 0)
   {
-    std::cerr << "Error opeing " << file_name << std::endl;
+    std::cerr << "Error opening " << file_name << std::endl;
     exit(1);
   }
   auto file_size = lseek(fd, 0, SEEK_END);
@@ -324,9 +319,23 @@ size_t PTrie::search_prefix(const std::string& word) const
   return i;
 }
 
-/**
- * Would be better to return a pointer to the vector
- */
+std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+PTrie::search_rec(const std::string& word, const std::string& prefix_w, unsigned int length, unsigned int origin_length)
+{
+  if (length == 0)
+  {
+    auto ret = search0(word);
+    if (ret.size() != 0)
+    {
+      std::get<0>(ret[0]) = prefix_w + std::get<0>(ret[0]);
+      std::get<2>(ret[0]) = origin_length;
+    }
+    return ret;
+  }
+
+  return searchN(word, prefix_w, length, origin_length);
+}
+
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search0(const std::string& word)
 {
@@ -367,6 +376,39 @@ PTrie::search0(const std::string& word)
   }
 }
 
+std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+PTrie::searchN(const std::string& word, const std::string& prefix_w, unsigned int length, unsigned int origin_length)
+{
+  std::vector<std::tuple<std::string, unsigned long, unsigned int>> ret;
+
+  for (auto e: v_)
+  {
+    auto w = std::get<STRING>(e);
+    auto freq = std::get<FREQUENCE>(e);
+    auto child = std::get<CHILD>(e);
+
+    auto prefix_word = word.substr(0, w.size());
+
+    unsigned int l;
+    bool b;
+    std::tie(l, b) = damereau_levenshtein(w, prefix_word, word, length, freq); // DL between w and prefix_word and between w and word
+
+    if (b) // w is accepted
+      ret.emplace_back(prefix_w + w, freq, origin_length);
+
+    if (l <= length && child) // our word is ok
+    {
+      auto v = child->search_rec(word.substr(w.size() + 1), prefix_w + w, length - l, origin_length);
+
+      // ret = ret + v
+      ret.reserve(ret.size() + v.size());
+      ret.insert(ret.end(), v.begin(), v.end());
+    }
+  }
+
+  return ret;
+}
+
 void print_result(const std::vector<std::tuple<std::string, unsigned long, unsigned int>>& result)
 {
   std::cout << "[";
@@ -383,4 +425,10 @@ void print_result(const std::vector<std::tuple<std::string, unsigned long, unsig
   }
 
   std::cout << "]" << std::endl;
+}
+
+std::tuple<unsigned int, bool>
+damereau_levenshtein(const std::string& w, const std::string& prefix_word, const std::string& word, unsigned int length, unsigned long freq)
+{
+  // 4 operations: insertion, deletion, edition, inversion
 }

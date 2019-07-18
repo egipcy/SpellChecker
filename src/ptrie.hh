@@ -32,7 +32,7 @@ public:
   search(const std::string& word, unsigned int length);
 
   void serialize(std::ofstream& file);
-  void deserialize(std::string file_name);
+  void deserialize(const char* file_name);
 
 private:
   void save_nodes_meta(std::ofstream& file, int depth, int& offset);
@@ -42,7 +42,14 @@ private:
   void build_node(int depth, int last_depth, int& curr_pos);
   void next_comma(int& curr_pos);
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+  search_rec(const std::string& word, const std::string& prefix_w, unsigned int length, unsigned int origin_length);
+  std::vector<std::tuple<std::string, unsigned long, unsigned int>>
   search0(const std::string& word);
+  std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+  searchN(const std::string& word, const std::string& prefix_w, unsigned int length, unsigned int origin_length);
 };
 
 void print_result(const std::vector<std::tuple<std::string, unsigned long, unsigned int>>& result);
+
+std::tuple<unsigned int, bool>
+damereau_levenshtein(const std::string& w, const std::string& prefix_word, const std::string& word, unsigned int length, unsigned long freq);
