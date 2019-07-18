@@ -51,10 +51,11 @@ for distance in range(1):
             while read word; do echo approx 0 $word; done > /tmp/input.txt \
             && /usr/bin/time ./TextMiningApp ./mydict.bin < /tmp/input.txt' + (' > /dev/null ' if derive_stream else '') + ' \
             && printf "{{{" \
-            && /usr/bin/time ./ref/refTextMiningApp ./ref/refdict.bin < /tmp/refinput.txt' + (' > /dev/null' if derive_stream else '')],
+            && /usr/bin/time ./ref/refTextMiningApp ./ref/refdict.bin < /tmp/input.txt' + (' > /dev/null' if derive_stream else '')],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res = p.communicate()
-        assert(p.returncode == 0)
+        print('Return code = ' + str(p.returncode))
+        #assert(p.returncode == 2)
 
         res1 = res[1].split()
         time = -1
@@ -119,3 +120,5 @@ if response in ['y', 'Y']:
 print((color.FAIL + 'Fails:\t%d%%\n' + color.HEADER + 'Null:\t%d%%\n'
         + color.OKGREEN + 'OK:\t%d%%\n' + color.YELLOW + 'OMG:\t%d%%' + color.ENDC)
         % (nb_fails / nb_tot * 100, nb_null / nb_tot * 100, nb_ok / nb_tot * 100, nb_omg / nb_tot * 100))
+
+
