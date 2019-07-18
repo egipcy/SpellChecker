@@ -11,6 +11,8 @@
 #include <sstream>
 #include <cstring>
 #include <stdlib.h>
+#include <climits>
+
 #include "ptrie.hh"
 
 PTrie::PTrie()
@@ -438,4 +440,67 @@ std::tuple<unsigned int, bool>
 damereau_levenshtein(const std::string& w, const std::string& prefix_word, const std::string& word, unsigned int length, unsigned long freq)
 {
   // 4 operations: insertion, deletion, edition, inversion
+  // No need to exceed length in term of distance
+  // return <X, true> if freq != 0 and w is accepted
+  // word = prefix_word + ...
+
+  auto word_used = freq == 0 ? prefix_word : word;
+
+  std::vector<std::vector<unsigned int>> d(w.size() + 1);
+  for (size_t i = 0; i <= w.size(); i++)
+  {
+    d[i] = std::vector<unsigned int>(word_used.size() + 1);
+    d[i][0] = i;
+  }
+  for (size_t j = 1; j <= word_used.size(); j++)
+    d[0][j] = j;
+
+  unsigned int sub_or_exact = 0;
+  bool b = freq != 0;
+  bool b_break = false;
+  for (size_t i = 1; i <= w.size(); i++)
+    for (size_t j = 1; j <= word_used.size(); j++)
+    {
+      sub_or_exact = w[i - 1] == word_used[j - 1] ? 0 : 1;
+
+      d[i][j] = std::min({
+        d[i - 1][j] + 1,
+        d[i][j - 1] + 1,
+        d[i - 1][j - 1] + sub_or_exact});
+
+      if (i > 1 && j > 1 && w[i - 1] == word_used[j - 2] && w[i - 2] == word_used[j - 1])
+        d[i][j] = std::min(d[i][j], d[i - 2][j - 2] + sub_or_exact);
+
+      if (d[i][j] > length)
+      {
+        unsigned int min = d[i][0];
+        for (unsigned int k = 1; k < j && min > length; k++)
+          min = std::min(min, d[i][k]);
+        for (auto it = d[i - 1].cbegin() + j - 1; it < d[i - 1].cend() && min > length; it++)
+          min = std::min(min, *it);
+
+        if (min > length)
+        {
+          b = false;
+          b_break = true;
+          i = w.size() + 1;
+          break;
+        }
+      }
+    }
+
+    /*std::cout << "  ";
+    for (size_t j = 1; j <= word_used.size(); j++)
+      std::cout << word_used[j - 1] << " ";
+    std::cout << std::endl;
+
+    for (size_t i = 1; i <= w.size(); i++)
+    {
+      std::cout << w[i - 1] << " ";
+      for (size_t j = 1; j <= word_used.size(); j++)
+        std::cout << d[i][j] << " ";
+      std::cout << std::endl;
+    }*/
+
+    return std::tuple(b_break ? length + 1 : d[w.size()][prefix_word.size()], b && d[w.size()][word.size()] <= length);
 }

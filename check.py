@@ -54,6 +54,7 @@ for distance in range(1):
             && /usr/bin/time ./ref/refTextMiningApp ./ref/refdict.bin < /tmp/input.txt' + (' > /dev/null' if derive_stream else '')],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res = p.communicate()
+        assert(p.returncode == 0)
 
         res1 = res[1].split()
         time = -1
@@ -70,7 +71,6 @@ for distance in range(1):
         ref_tot_time += ref_time
 
         if not derive_stream:
-            print(res)
             answer, ref_answer = res[0].split('{{{')
 
             if answer != ref_answer:
