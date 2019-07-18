@@ -497,3 +497,5 @@ damereau_levenshtein(const std::string& w, const std::string& prefix_word, const
 
     return std::tuple(b_break ? length + 1 : d[w.size()][prefix_word.size()], b && d[w.size()][word.size()] <= length);
 }
+
+
