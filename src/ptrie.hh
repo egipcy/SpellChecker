@@ -13,9 +13,11 @@ private:
   int file_size_;
   char* chunk_;
   int data_start_;
+  char* data_chunk_;
 
 public:
   enum type {STRING, CHILD, FREQUENCE};
+  enum G {OFFSET, COUNT, SON, FREQ};
 
   PTrie();
   PTrie(PTrie* parent, int file_size, char* chunk, int data_start);
