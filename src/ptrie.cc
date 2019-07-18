@@ -251,8 +251,10 @@ void PTrie::build_compressed_trie(char* chunk, int data_start, int file_size)
  */
 void PTrie::build_node(int depth, int last_depth, int& curr_pos)
 {
+  std::cout << "depth " << depth;
   if (last_depth < depth)
     return parent_->build_node(depth - 1, last_depth, curr_pos);
+  std::cout << "depth " << std::endl;
 
   //They will be later assign to numerical variables
   int dep = last_depth;
@@ -261,10 +263,16 @@ void PTrie::build_node(int depth, int last_depth, int& curr_pos)
 
   while (curr_pos < data_start_)
   {
+    std::cout << "a " << std::endl;
+
     //offset
     of = atoi(chunk_+curr_pos++);
+    std::cout << "b " << std::endl;
+
     next_comma(curr_pos);
+    std::cout << "c " << std::endl;
     co = atoi(chunk_+curr_pos);
+    std::cout << "d " << std::endl;
 
     while (*(chunk_+curr_pos++) != ';')
     {
@@ -273,15 +281,24 @@ void PTrie::build_node(int depth, int last_depth, int& curr_pos)
         fr = strtoul(chunk_+(++curr_pos), nullptr, 10);
       }
     }
+    std::cout << "e " << std::endl;
+
     v2_.emplace_back(of, co, nullptr, fr);
+    std::cout << "e2 " << std::endl;
+
     if (curr_pos >= data_start_-1)
     {
+      std::cout << "3 " << std::endl;
       return;
     }
+    std::cout << "f " << std::endl;
     
     //Reading next depth
     dep = atoi(chunk_+curr_pos++);
+    std::cout << "g " << std::endl;
+
     next_comma(curr_pos);
+    std::cout << "h " << std::endl;
 
     //if same dep than current node depth continue in the while
     if (dep == depth)
@@ -292,13 +309,20 @@ void PTrie::build_node(int depth, int last_depth, int& curr_pos)
     else
       break;
   }
+  std::cout << "i " << std::endl;
 
   if (dep < depth)
     return parent_->build_node(depth - 1, dep, curr_pos);
   //else
+  std::cout << 0 << std::endl;
   PTrie p(this, file_size_, chunk_, data_start_);
+  std::cout << 1 << std::endl;
+
   std::shared_ptr<PTrie> pt = std::make_shared<PTrie>(p);
+  std::cout << 2 << std::endl;
+
   std::get<2>(v2_[v2_.size()-1]) = pt;
+  std::cout << 3 << std::endl;
   return pt->build_node(depth+1, dep, curr_pos);
 }
 
