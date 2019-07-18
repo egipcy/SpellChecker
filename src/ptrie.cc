@@ -209,29 +209,14 @@ void PTrie::deserialize(std::string file_name)
   char *chunk = reinterpret_cast<char*>(mmap(NULL, file_size, PROT_READ, MAP_FILE | MAP_PRIVATE | MAP_POPULATE, fd, 0));
   ::close(fd);
 
-  std::vector<char> v;
-  char c;
-  std::stringstream ss;
-  int dataStart; //at *(chunk+dataStart) starts the data
   //Read the numbers at the end of the file
-  int i = -1;
-  while (1)
+  int i = 0;
+  while (*(chunk+file_size+(--i)) != '\n')
   {
-    c = *(chunk+file_size+(i--));
-    if (c != '\n')
-    {
-      v.emplace_back(c);
-    }
-    else
-    {
-      for (auto it = v.rbegin(); it != v.rend(); ++it)
-      {
-        ss << *it;
-      }
-      ss >> dataStart;
-      break;
-    }
+    continue;
   }
+  int dataStart = atoi(chunk+file_size+i+1); //at *(chunk+dataStart) starts the data
+
   build_compressed_trie(chunk, dataStart, file_size);
 }
 
