@@ -281,7 +281,12 @@ void PTrie::build_node(int depth, int last_depth, int& curr_pos)
         fr = strtoul(chunk_+(++curr_pos), nullptr, 10);
       }
     }
-    std::cout << "e " << std::endl;
+    std::cout << "e " 
+    << v2_.size() 
+    << " " <<of
+    << " " <<co
+    << " " << fr
+    << std::endl;
 
     v2_.emplace_back(of, co, nullptr, fr);
     std::cout << "e2 " << std::endl;
