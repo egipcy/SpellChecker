@@ -1,11 +1,33 @@
 #include <iostream>
 #include <algorithm>
 #include <memory>
-
+#include <fstream>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <string>
+#include <sstream>
+#include <cstring>
+#include <stdlib.h>
 #include "ptrie.hh"
 
 PTrie::PTrie()
 { }
+
+PTrie::PTrie(PTrie* parent, int file_size, char* chunk, int data_start):
+  parent_(parent)
+  ,file_size_(file_size)
+  ,chunk_(chunk)
+  ,data_start_(data_start)
+{}
+
+PTrie::~PTrie()
+{
+  if (parent_ == nullptr)
+    munmap(chunk_, file_size_);
+}
 
 void PTrie::insert(const std::string& word, unsigned long frequence)
 {
@@ -103,53 +125,199 @@ PTrie::search(const std::string& word, unsigned int length)
   return std::vector<std::tuple<std::string, unsigned long, unsigned int>>();
 }
 
-void PTrie::serialize(std::ofstream& file)
+void PTrie::save_nodes_meta(std::ofstream& file, int depth, int& offset)
+{
+  char c = ',';
+  char sc = ';';
+  char n = '\n';
+  const std::string ds = std::to_string(depth);
+  const std::string os = std::to_string(offset);
+  for (size_t i = 0; i < v_.size(); i++)
+  {
+    const std::string ss = std::to_string(std::get<STRING>(v_[i]).size());
+    file.write(ds.c_str(), ds.size());
+    file.write(&c, sizeof(c));
+    file.write(os.c_str(), os.size());
+    file.write(&c, sizeof(c));
+    file.write(ss.c_str(), ss.size());
+    if (std::get<FREQUENCE>(v_[i]))
+    {
+      const std::string fs = std::to_string(std::get<FREQUENCE>(v_[i]));
+      file.write(&c, sizeof(c));
+      file.write(fs.c_str(), fs.size());
+    } 
+    file.write(&sc, sizeof(sc));
+
+    offset += std::get<STRING>(v_[i]).size();
+    if (std::get<CHILD>(v_[i]) != nullptr)
+      std::get<CHILD>(v_[i])->save_nodes_meta(file, depth + 1, offset);
+  }
+}
+
+void PTrie::save_edges(std::ofstream& file)
 {
   for (size_t i = 0; i < v_.size(); i++)
   {
-    auto e = v_[i];
+    file.write(std::get<STRING>(v_[i]).c_str(), std::get<STRING>(v_[i]).size());
+    if (std::get<CHILD>(v_[i]) != nullptr)
+      std::get<CHILD>(v_[i])->save_edges(file);
+  }
+}
 
-    file << std::get<STRING>(e) << std::endl;
-    file << std::get<FREQUENCE>(e) << std::endl;
-    if (std::get<CHILD>(e))
+
+/**
+ * file's pattern: 
+ *  meta data (depth,offset,count[,freq];)
+ *  ;
+ *  data (strings)
+ *  \n
+ *  data starting offset (number)
+ */
+void PTrie::serialize(std::ofstream& file)
+{
+  int depth = 0;
+  int offset = 0;
+  save_nodes_meta(file, depth, offset);
+  std::string pos = std::to_string(file.tellp()); //Offset to the data
+  save_edges(file);
+  char n = '\n';
+  file.write(&n, sizeof(n)); //Delemiter between data and offset
+  file.write(pos.c_str(), pos.size()); //Append the data offset at the end
+}
+
+void PTrie::deserialize(std::string file_name)
+{
+  int fd = ::open(file_name.c_str(), O_RDONLY);
+  if (fd < 0)
+  {
+    std::cerr << "Error opeing " << file_name << std::endl;
+    exit(1);
+  }
+  auto file_size = lseek(fd, 0, SEEK_END);
+  char *chunk = reinterpret_cast<char*>(mmap(NULL, file_size, PROT_READ, MAP_FILE | MAP_PRIVATE | MAP_POPULATE, fd, 0));
+  ::close(fd);
+
+  std::vector<char> v;
+  char c;
+  std::stringstream ss;
+  int dataStart; //at *(chunk+dataStart) starts the data
+  //Read the numbers at the end of the file
+  int i = -1;
+  while (1)
+  {
+    c = *(chunk+file_size+(i--));
+    if (c != '\n')
     {
-      file << "0" << std::endl;
-      std::get<CHILD>(e)->serialize(file);
+      v.emplace_back(c);
     }
     else
-      file << std::endl;
-
-    if (i < v_.size() - 1)
-      file << "1" << std::endl;
+    {
+      for (auto it = v.rbegin(); it != v.rend(); ++it)
+      {
+        ss << *it;
+      }
+      ss >> dataStart;
+      break;
+    }
   }
-  file << std::endl;
+  build_compressed_trie(chunk, dataStart, file_size);
 }
 
-void PTrie::deserialize(std::ifstream& file)
+void PTrie::build_compressed_trie(char* chunk, int data_start, int file_size)
 {
-  std::string line;
+  //init root
+  chunk_ = chunk;
+  data_start_ = data_start;
+  file_size_ = file_size;
+  parent_ = nullptr;
+  int curr_pos = 2; //skipped "0," as build node starts reading at offset
+    std::cout << 0 << " ";
 
-  if (!std::getline(file, line))
-    return;
-  std::string s = line;
+  //buiding nodes
+  build_node(0, 0, curr_pos);
+}
 
-  std::getline(file, line);
-  unsigned long i = std::stoul(line);
+/** Constructs nodes from dict
+ * dict follows this pattern: depth,offset,count[,freq];
+ * depth: depth of the node
+ * last_depth: this functions starts reading at offset. last_depth is the depth that has been
+ *  read before calling this function
+ * curr_pos: cursor position while reading meta datas to construct the nodes
+ * 
+ * Function's steps:
+ * -Reads the pattern from offset to ";"
+ * -Saves as child in v2_
+ * -Reads the next depth
+ *  -if read depth == depth: Continues in the while loop
+ *  -if read depth < depth: Calls the parent node
+ *  -if read depth > depth: Creates and stores a PTrie in the last element of v2_,
+ *    then calls build_node on it
+ */
+void PTrie::build_node(int depth, int last_depth, int& curr_pos)
+{
+  if (last_depth < depth)
+    return parent_->build_node(depth - 1, last_depth, curr_pos);
 
-  std::getline(file, line);
-  std::shared_ptr<PTrie> ptrie = nullptr;
-  if (line == "0")
+  //They will be later assign to numerical variables
+  int dep = last_depth;
+  int of,co;
+  unsigned long fr = 0;
+
+  while (curr_pos < data_start_)
   {
-    ptrie = std::make_shared<PTrie>();
-    ptrie->deserialize(file);
+    //offset
+    of = atoi(chunk_+curr_pos++);
+    std::cout << of << " ";
+    next_comma(curr_pos);
+    co = atoi(chunk_+curr_pos);
+    std::cout << co << " ";
+
+    while (*(chunk_+curr_pos++) != ';')
+    {
+      if (*(chunk_+curr_pos) == ',')
+      {
+        fr = strtoul(chunk_+(++curr_pos), nullptr, 10);
+      }
+    }
+    std::cout << fr << std::endl;
+    v2_.emplace_back(of, co, nullptr, fr);
+
+    if (curr_pos >= data_start_-1)
+      return;
+    
+    //Reading next depth
+    dep = atoi(chunk_+curr_pos++);
+    std::cout << dep << " ";
+    next_comma(curr_pos);
+
+    //if same dep than current node depth continue in the while
+    if (dep == depth)
+    {
+      fr = 0;
+      continue;
+    }
+    else
+      break;
   }
 
-  v_.push_back(std::make_tuple(s, ptrie, i));
-
-  std::getline(file, line);
-  if (line == "1")
-    deserialize(file);
+  if (dep < depth)
+    return parent_->build_node(depth - 1, dep, curr_pos);
+  //else
+  PTrie p(this, file_size_, chunk_, data_start_);
+  std::shared_ptr<PTrie> pt = std::make_shared<PTrie>(p);
+  std::get<2>(v2_[v2_.size()-1]) = pt;
+  return pt->build_node(depth+1, dep, curr_pos);
 }
+
+/**
+ * Moves currsor after the next "," to read with atoi
+ */
+void PTrie::next_comma(int& curr_pos)
+{
+  while (*(chunk_+curr_pos++) != ',')
+    continue;
+}
+
 
 size_t PTrie::search_prefix(const std::string& word) const
 {
