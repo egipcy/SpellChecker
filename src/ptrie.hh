@@ -19,10 +19,10 @@ public:
 
   PTrie();
   PTrie(PTrie* parent, int file_size, char* chunk, int data_start);
-  ~PTrie();
   void insert(const std::string&, unsigned long);
 
   void print(int nb_indent = 0) const;
+  void print_compressed(int depth) const;
 
   void sort();
 

@@ -23,12 +23,6 @@ PTrie::PTrie(PTrie* parent, int file_size, char* chunk, int data_start):
   ,data_start_(data_start)
 {}
 
-PTrie::~PTrie()
-{
-  if (parent_ == nullptr)
-    munmap(chunk_, file_size_);
-}
-
 void PTrie::insert(const std::string& word, unsigned long frequence)
 {
   if (word.size() == 0)
@@ -100,6 +94,24 @@ void PTrie::print(int nb_indent) const
       std::get<CHILD>(e)->print(nb_indent + 1);
   }
   if (nb_indent == 0)
+    std::cout << std::endl;
+}
+
+void PTrie::print_compressed(int depth) const
+{
+  for (auto v: v2_)
+  {
+    std::cout
+      << depth << ","
+      << std::get<0>(v) << ","
+      << std::get<1>(v);
+    if (std::get<3>(v) != 0)
+      std:: cout << "," << std::get<3>(v);
+    std::cout << ";";
+    if (std::get<2>(v) != nullptr)
+      std::get<2>(v)->print_compressed(depth+1);
+  }
+  if (!depth)
     std::cout << std::endl;
 }
 
@@ -231,7 +243,6 @@ void PTrie::build_compressed_trie(char* chunk, int data_start, int file_size)
   file_size_ = file_size;
   parent_ = nullptr;
   int curr_pos = 2; //skipped "0," as build node starts reading at offset
-    std::cout << 0 << " ";
 
   //buiding nodes
   build_node(0, 0, curr_pos);
@@ -267,10 +278,8 @@ void PTrie::build_node(int depth, int last_depth, int& curr_pos)
   {
     //offset
     of = atoi(chunk_+curr_pos++);
-    std::cout << of << " ";
     next_comma(curr_pos);
     co = atoi(chunk_+curr_pos);
-    std::cout << co << " ";
 
     while (*(chunk_+curr_pos++) != ';')
     {
@@ -279,15 +288,14 @@ void PTrie::build_node(int depth, int last_depth, int& curr_pos)
         fr = strtoul(chunk_+(++curr_pos), nullptr, 10);
       }
     }
-    std::cout << fr << std::endl;
     v2_.emplace_back(of, co, nullptr, fr);
-
     if (curr_pos >= data_start_-1)
+    {
       return;
+    }
     
     //Reading next depth
     dep = atoi(chunk_+curr_pos++);
-    std::cout << dep << " ";
     next_comma(curr_pos);
 
     //if same dep than current node depth continue in the while
