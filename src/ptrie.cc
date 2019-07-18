@@ -192,12 +192,12 @@ void PTrie::serialize(std::ofstream& file)
   file.write(pos.c_str(), pos.size()); //Append the data offset at the end
 }
 
-void PTrie::deserialize(std::string file_name)
+void PTrie::deserialize(const char* file_name)
 {
-  int fd = ::open(file_name.c_str(), O_RDONLY);
+  int fd = ::open(file_name, O_RDONLY);
   if (fd < 0)
   {
-    std::cerr << "Error opeing " << file_name << std::endl;
+    std::cerr << "Error opening " << file_name << std::endl;
     exit(1);
   }
   auto file_size = lseek(fd, 0, SEEK_END);

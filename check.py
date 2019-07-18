@@ -70,6 +70,7 @@ for distance in range(1):
         ref_tot_time += ref_time
 
         if not derive_stream:
+            print(res)
             answer, ref_answer = res[0].split('{{{')
 
             if answer != ref_answer:

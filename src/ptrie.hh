@@ -30,7 +30,7 @@ public:
   search(const std::string& word, unsigned int length);
 
   void serialize(std::ofstream& file);
-  void deserialize(std::string file_name);
+  void deserialize(const char* file_name);
 
 private:
   void save_nodes_meta(std::ofstream& file, int depth, int& offset);
