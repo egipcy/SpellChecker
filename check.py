@@ -38,7 +38,7 @@ nb_null = 0
 nb_ok = 0
 nb_omg = 0
 
-for distance in range(1):
+for distance in range(3):
     b = False
     tot_time = 0.
     ref_tot_time = 0.
@@ -54,8 +54,7 @@ for distance in range(1):
             && /usr/bin/time ./ref/refTextMiningApp ./ref/refdict.bin < /tmp/input.txt' + (' > /dev/null' if derive_stream else '')],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res = p.communicate()
-        print('Return code = ' + str(p.returncode))
-        #assert(p.returncode == 2)
+        assert(p.returncode == 0)
 
         res1 = res[1].split()
         time = -1
