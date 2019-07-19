@@ -24,6 +24,6 @@ int main()
   ptrie.serialize(f1);
   f1.close();
   ptrie.deserialize("test_dict.bin");
-  ptrie.print_compressed(0);
+  ptrie.print();
   return 0;
 }

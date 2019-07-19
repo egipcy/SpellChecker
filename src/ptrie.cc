@@ -16,13 +16,9 @@
 PTrie::PTrie()
 { }
 
-PTrie::PTrie(PTrie* parent, int file_size, char* chunk, int data_start):
-  parent_(parent)
-  ,file_size_(file_size)
-  ,chunk_(chunk)
-  ,data_start_(data_start)
-  ,data_chunk_(chunk+data_start)
-{}
+PTrie::PTrie(const std::shared_ptr<PTrie>& parent)
+  : parent_(parent)
+{ }
 
 void PTrie::insert(const std::string& word, unsigned long frequence)
 {
@@ -95,24 +91,6 @@ void PTrie::print(int nb_indent) const
       std::get<CHILD>(e)->print(nb_indent + 1);
   }
   if (nb_indent == 0)
-    std::cout << std::endl;
-}
-
-void PTrie::print_compressed(int depth) const
-{
-  for (auto v: v2_)
-  {
-    std::cout
-      << depth << ","
-      << std::get<0>(v) << ","
-      << std::get<1>(v);
-    if (std::get<3>(v) != 0)
-      std:: cout << "," << std::get<3>(v);
-    std::cout << ";";
-    if (std::get<2>(v) != nullptr)
-      std::get<2>(v)->print_compressed(depth+1);
-  }
-  if (!depth)
     std::cout << std::endl;
 }
 
@@ -211,22 +189,8 @@ void PTrie::deserialize(const char* file_name)
   {
     continue;
   }
-  int dataStart = atoi(chunk+file_size+i+1); //at *(chunk+dataStart) starts the data
-  build_compressed_trie(chunk, dataStart, file_size);
-}
-
-void PTrie::build_compressed_trie(char* chunk, int data_start, int file_size)
-{
-  //init root
-  chunk_ = chunk;
-  data_start_ = data_start;
-  data_chunk_ = chunk_ + data_start_;
-  file_size_ = file_size;
-  parent_ = nullptr;
-  int curr_pos = 2; //skipped "0," as build node starts reading at offset
-
-  //buiding nodes
-  build_node(0, 0, curr_pos);
+  int data_start = atoi(chunk+file_size+i+1); //at *(chunk+dataStart) starts the data
+  build_node(0, 0, 2, chunk, data_start, file_size);
 }
 
 /** Constructs nodes from dict
@@ -245,12 +209,13 @@ void PTrie::build_compressed_trie(char* chunk, int data_start, int file_size)
  *  -if read depth > depth: Creates and stores a PTrie in the last element of v2_,
  *    then calls build_node on it
  */
-void PTrie::build_node(int depth, int last_depth, int& curr_pos)
+void PTrie::build_node(int depth, int last_depth, int curr_pos, const char* chunk, int data_start, const off_t& file_size)
 {
-  PTrie* pt = this;
+  const char* data_chunk = chunk + data_start;
+  std::shared_ptr<PTrie> pt(this);
   int current_depth = depth;
   int read_depth = last_depth;
-  while(1)
+  while (true)
   {
     if (read_depth < current_depth)
     {
@@ -264,30 +229,30 @@ void PTrie::build_node(int depth, int last_depth, int& curr_pos)
     int of,co;
     unsigned long fr = 0;
 
-    while (curr_pos < data_start_)
+    while (curr_pos < data_start)
     {
       //offset
-      of = atoi(chunk_+curr_pos++);
-      next_comma(curr_pos);
+      of = atoi(chunk+curr_pos++);
+      next_comma(curr_pos, chunk);
 
-      co = atoi(chunk_+curr_pos);
+      co = atoi(chunk+curr_pos);
 
-      while (*(chunk_+curr_pos++) != ';')
+      while (*(chunk+curr_pos++) != ';')
       {
-        if (*(chunk_+curr_pos) == ',')
+        if (*(chunk+curr_pos) == ',')
         {
-          fr = strtoul(chunk_+(++curr_pos), nullptr, 10);
+          fr = strtoul(chunk+(++curr_pos), nullptr, 10);
         }
       }
-      pt->v2_.emplace_back(of, co, nullptr, fr);
-      if (curr_pos >= data_start_-1)
+      pt->v_.emplace_back(std::string(data_chunk + of, co), nullptr, fr);
+      if (curr_pos >= data_start-1)
       {
         return;
       }
       
       //Reading next depth
-      read_depth = atoi(chunk_+curr_pos++);
-      next_comma(curr_pos);
+      read_depth = atoi(chunk+curr_pos++);
+      next_comma(curr_pos, chunk);
 
       //if same dep than current node depth continue in the while
       if (read_depth == current_depth)
@@ -307,20 +272,19 @@ void PTrie::build_node(int depth, int last_depth, int& curr_pos)
     }
 
     //else
-    PTrie p(pt, file_size_, chunk_, data_start_);
-    std::shared_ptr<PTrie> new_p = std::make_shared<PTrie>(p);
-    std::get<G::SON>(pt->v2_[pt->v2_.size()-1]) = new_p;
+    std::shared_ptr<PTrie> new_p = std::make_shared<PTrie>(pt);
+    std::get<CHILD>(pt->v_[pt->v_.size()-1]) = new_p;
     current_depth++;
-    pt = new_p.get();
+    pt = new_p;
   }
 }
 
 /**
  * Moves currsor after the next "," to read with atoi
  */
-void PTrie::next_comma(int& curr_pos)
+void PTrie::next_comma(int& curr_pos, const char* chunk)
 {
-  while (*(chunk_+curr_pos++) != ',')
+  while (*(chunk+curr_pos++) != ',')
     continue;
 }
 
@@ -346,16 +310,16 @@ PTrie::search_rec(const std::string& word, const std::string& prefix_w, unsigned
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned int origin_length)
 {
-  for (const auto& e: v2_)
+  for (const auto& e: v_)
   {
-    std::string w(data_chunk_ + std::get<OFFSET>(e), std::get<COUNT>(e));
+    std::string w = std::get<STRING>(e);
 
     if (w.size() <= word.size() && memcmp(word.c_str(), w.c_str(), w.size()) == 0)
     {
       if (w.size() == word.size())
-        return {std::tuple<std::string, unsigned long, unsigned int>(prefix_w + w, std::get<FREQ>(e), origin_length)};
+        return {std::tuple<std::string, unsigned long, unsigned int>(prefix_w + w, std::get<FREQUENCE>(e), origin_length)};
 
-      auto child = std::get<SON>(e);
+      auto child = std::get<CHILD>(e);
       if (child)
         return child->search0(word.substr(w.size()), prefix_w + w, origin_length);
     }
@@ -369,11 +333,11 @@ PTrie::searchN(const std::string& word, const std::string& prefix_w, unsigned in
 {
   std::vector<std::tuple<std::string, unsigned long, unsigned int>> ret;
 
-  for (auto e: v2_)
+  for (const auto& e: v_)
   {
-    std::string w(data_chunk_ + std::get<OFFSET>(e), std::get<COUNT>(e));
-    auto freq = std::get<FREQ>(e);
-    auto child = std::get<SON>(e);
+    std::string w = std::get<STRING>(e);
+    auto freq = std::get<FREQUENCE>(e);
+    auto child = std::get<CHILD>(e);
 
     auto prefix_word = word.substr(0, w.size());
 
