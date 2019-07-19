@@ -21,8 +21,8 @@ int main()
   ptrie.sort();
 
 
-  std::vector<unsigned int> lengths = {15};
-  std::vector<std::string> words = {"m"};
+  std::vector<unsigned int> lengths = {2};
+  std::vector<std::string> words = {"m", "nave", "maitres"};
 
   for (auto length: lengths)
     for (auto word: words)
