@@ -414,7 +414,7 @@ PTrie::searchN(const std::string& word, const std::string& prefix_w, unsigned in
 
     if (l <= length && child) // our word is ok
     {
-      auto v = child->search_rec(word.substr(w.size() + 1), prefix_w + w, length - l, origin_length);
+      auto v = child->searchN(word.size() <= w.size() ? "" : word.substr(w.size()), prefix_w + w, length - l, origin_length);
 
       // ret = ret + v
       ret.reserve(ret.size() + v.size());

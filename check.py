@@ -28,7 +28,7 @@ if response in ['y', 'Y']:
 
 
 
-derive_stream = False
+derive_stream = True
 ref_nbrps = [212089.1, 54522.6, 186.0]
 min_req = [3000, 300, 30]
 nbreq_per_dist = [200000, 20000, 2000]
@@ -43,15 +43,15 @@ for distance in range(3):
     tot_time = 0.
     ref_tot_time = 0.
     nb_loop = 0
-    while tot_time < 1:
+    while tot_time < 0.1:
         nb_loop += nbreq_per_dist[distance]
 
         p = subprocess.Popen([
             '/bin/sh', '-c', 'shuf words.txt | head -' + str(nbreq_per_dist[distance]) + ' | cut -f1 | \
-            while read word; do echo approx 0 $word; done > /tmp/input.txt \
-            && /usr/bin/time ./TextMiningApp ./mydict.bin < /tmp/input.txt' + (' > /dev/null ' if derive_stream else '') + ' \
+            while read word; do echo approx ' + str(distance) + ' $word; done > /tmp/input.txt \
+            && /usr/bin/time ./TextMiningApp ./mydict.bin < /tmp/input.txt' + (' > /tmp/f0d' + str(distance) if derive_stream else '') + ' \
             && printf "{{{" \
-            && /usr/bin/time ./ref/refTextMiningApp ./ref/refdict.bin < /tmp/input.txt' + (' > /dev/null' if derive_stream else '')],
+            && /usr/bin/time ./ref/refTextMiningApp ./ref/refdict.bin < /tmp/input.txt' + (' > /tmp/f1d' + str(distance) if derive_stream else '')],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res = p.communicate()
         assert(p.returncode == 0)
@@ -67,6 +67,7 @@ for distance in range(3):
                     ref_time = float(e[:-4])
                     break
 
+        print((time, ref_time))
         tot_time += time
         ref_tot_time += ref_time
 
