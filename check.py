@@ -28,10 +28,10 @@ if response in ['y', 'Y']:
 
 
 
-derive_stream = True
+derive_stream = False
 ref_nbrps = [212089.1, 54522.6, 186.0]
 min_req = [3000, 300, 30]
-nbreq_per_dist = [200000, 20000, 2000]
+nbreq_per_dist = [200000, 2000, 200]
 
 nb_fails = 0
 nb_null = 0

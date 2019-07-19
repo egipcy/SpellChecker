@@ -338,58 +338,30 @@ std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search_rec(const std::string& word, const std::string& prefix_w, unsigned int length, unsigned int origin_length)
 {
   if (length == 0)
-  {
-    auto ret = search0(word);
-    if (ret.size() != 0)
-    {
-      std::get<0>(ret[0]) = prefix_w + std::get<0>(ret[0]);
-      std::get<2>(ret[0]) = origin_length;
-    }
-    return ret;
-  }
+    return search0(word, prefix_w, origin_length);
 
   return searchN(word, prefix_w, length, origin_length);
 }
 
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
-PTrie::search0(const std::string& word)
+PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned int origin_length)
 {
-  const char* cword = word.c_str();
-  std::vector<std::tuple<std::string, unsigned long, unsigned int>> result;
-  PTrie* pt = this;
-  const size_t v_size = pt->v2_.size();
-  if (!v_size)
-    return result;
-  const size_t ws = word.size();
-  int word_i = 0;
-  int v_i = 0;
-  bool break_after_for;
-  while (1)
+  for (const auto& e: v2_)
   {
-    break_after_for = true;
-    for (const auto& v: pt->v2_)
+    std::string w(data_chunk_ + std::get<OFFSET>(e), std::get<COUNT>(e));
+
+    if (w.size() <= word.size() && memcmp(word.c_str(), w.c_str(), w.size()) == 0)
     {
-      if (std::get<G::COUNT>(v) <= ws-word_i
-          && !memcmp(data_chunk_+std::get<G::OFFSET>(v), cword+word_i, std::get<G::COUNT>(v)))
-      {
-        word_i += std::get<G::COUNT>(v);
-        if (word_i == ws)
-        {
-          if (std::get<G::FREQ>(v) != 0)
-            result.emplace_back(word, std::get<G::FREQ>(v), 0);
-          return result;
-        }
-        pt = std::get<G::SON>(v).get();
-        if (pt == nullptr)
-          return result;
-        break_after_for = false;
-        break;
-      }
+      if (w.size() == word.size())
+        return {std::tuple<std::string, unsigned long, unsigned int>(prefix_w + w, std::get<FREQ>(e), origin_length)};
+
+      auto child = std::get<SON>(e);
+      if (child)
+        return child->search0(word.substr(w.size()), prefix_w + w, origin_length);
     }
-    
-    if (break_after_for)
-      break;
   }
+
+  return {};
 }
 
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
@@ -399,7 +371,7 @@ PTrie::searchN(const std::string& word, const std::string& prefix_w, unsigned in
 
   for (auto e: v2_)
   {
-    std::string w(data_chunk_ + std::get<OFFSET>(e), std::get<COUNT>(e)); // std::get<STRING>(e);
+    std::string w(data_chunk_ + std::get<OFFSET>(e), std::get<COUNT>(e));
     auto freq = std::get<FREQ>(e);
     auto child = std::get<SON>(e);
 
@@ -414,7 +386,7 @@ PTrie::searchN(const std::string& word, const std::string& prefix_w, unsigned in
 
     if (l <= length && child) // our word is ok
     {
-      auto v = child->searchN(word.size() <= w.size() ? "" : word.substr(w.size()), prefix_w + w, length - l, origin_length);
+      auto v = child->search_rec(word.size() <= w.size() ? "" : word.substr(w.size()), prefix_w + w, length - l, origin_length);
 
       // ret = ret + v
       ret.reserve(ret.size() + v.size());

@@ -44,7 +44,7 @@ private:
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
   search_rec(const std::string& word, const std::string& prefix_w, unsigned int length, unsigned int origin_length);
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
-  search0(const std::string& word);
+  search0(const std::string& word, const std::string& prefix_w, unsigned int origin_length);
   
 public:
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
