@@ -312,7 +312,7 @@ PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned in
 {
   for (const auto& e: v_)
   {
-    std::string w = std::get<STRING>(e);
+    const std::string& w = std::get<STRING>(e);
 
     if (w.size() <= word.size() && memcmp(word.c_str(), w.c_str(), w.size()) == 0)
     {
