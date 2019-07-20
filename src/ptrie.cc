@@ -11,6 +11,9 @@
 #include <sstream>
 #include <cstring>
 #include <stdlib.h>
+#include <climits>
+#include <cassert>
+
 #include "ptrie.hh"
 
 PTrie::PTrie()
@@ -108,7 +111,17 @@ void PTrie::sort()
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search(const std::string& word, unsigned int length)
 {
-  return search_rec(word, "", length, length);
+  if (length == 0)
+    return search_rec({}, word, "", length, length);
+
+
+  std::vector<std::vector<unsigned int>> d(1);
+  d[0] = std::vector<unsigned int>(word.size() + 1);
+
+  for (size_t j = 1; j <= word.size(); j++)
+    d[0][j] = j;
+  
+  return search_rec(d, word, "", length, length);
 }
 
 void PTrie::save_nodes_meta(std::ofstream& file, int depth, int& offset)
@@ -299,12 +312,12 @@ size_t PTrie::search_prefix(const std::string& word) const
 }
 
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
-PTrie::search_rec(const std::string& word, const std::string& prefix_w, unsigned int length, unsigned int origin_length)
+PTrie::search_rec(const std::vector<std::vector<unsigned int>>& d, const std::string& word, const std::string& prefix_w, unsigned int length, unsigned int origin_length)
 {
   if (length == 0)
     return search0(word, prefix_w, origin_length);
 
-  return searchN(word, prefix_w, length, origin_length);
+  return searchN(d, word, prefix_w, length, origin_length);
 }
 
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
@@ -329,32 +342,38 @@ PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned in
 }
 
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
-PTrie::searchN(const std::string& word, const std::string& prefix_w, unsigned int length, unsigned int origin_length)
+PTrie::searchN(const std::vector<std::vector<unsigned int>>& d, const std::string& word, const std::string& prefix_w, unsigned int length, unsigned int origin_length)
 {
   std::vector<std::tuple<std::string, unsigned long, unsigned int>> ret;
 
   for (const auto& e: v_)
   {
-    std::string w = std::get<STRING>(e);
-    auto freq = std::get<FREQUENCE>(e);
-    auto child = std::get<CHILD>(e);
+    auto w = std::get<STRING>(e);
 
-    auto prefix_word = word.substr(0, w.size());
+    auto d2 = damereau_levenshtein(d, w, prefix_w.size() == 0 ? 0 : prefix_w[prefix_w.size() - 1], word, origin_length); // DL between tot_w and word
 
-    unsigned int l;
-    bool b;
-    std::tie(l, b) = damereau_levenshtein(w, prefix_word, word, length, freq); // DL between w and prefix_word and between w and word
-
-    if (b) // w is accepted
-      ret.emplace_back(prefix_w + w, freq, origin_length);
-
-    if (l <= length && child) // our word is ok
+    if (*std::min_element(d2[d2.size() - 1].cbegin(), d2[d2.size() - 1].cend()) <= origin_length) // We can pursue
     {
-      auto v = child->search_rec(word.size() <= w.size() ? "" : word.substr(w.size()), prefix_w + w, length - l, origin_length);
+      auto freq = std::get<FREQUENCE>(e);
+      auto child = std::get<CHILD>(e);
 
-      // ret = ret + v
-      ret.reserve(ret.size() + v.size());
-      ret.insert(ret.end(), v.begin(), v.end());
+      auto tot_w = prefix_w + w;
+
+      auto l = d2[tot_w.size()][word.size()];
+
+      if (freq != 0 && l <= origin_length) // tot_w is accepted
+      {
+        ret.emplace_back(tot_w, freq, l);
+      }
+
+      if (child) // let's continue
+      {
+        auto v = child->searchN(d2, word, tot_w, origin_length - l, origin_length);
+
+        // ret = ret + v
+        ret.reserve(ret.size() + v.size());
+        ret.insert(ret.end(), v.begin(), v.end());
+      }
     }
   }
 
@@ -379,42 +398,39 @@ void print_result(const std::vector<std::tuple<std::string, unsigned long, unsig
   std::cout << "]" << std::endl;
 }
 
-std::tuple<unsigned int, bool>
-damereau_levenshtein(const std::string& w, const std::string& prefix_word, const std::string& word, unsigned int length, unsigned long freq)
+std::vector<std::vector<unsigned int>>
+damereau_levenshtein(const std::vector<std::vector<unsigned int>>& d_input, const std::string& w, const char lastchar_w, const std::string& word, unsigned int length)
 {
   // 4 operations: insertion, deletion, edition, inversion
   // No need to exceed length in term of distance
-  // return <X, true> if freq != 0 and w is accepted
-  // word = prefix_word + ...
+  auto d = d_input;
 
-  auto word_used = freq == 0 ? prefix_word : word;
+  auto last_dsize = d.size();
 
-  std::vector<std::vector<unsigned int>> d(w.size() + 1);
-  for (size_t i = 0; i <= w.size(); i++)
+  // Add rows in table for each letter of w
+  d.reserve(d.size() + w.size());
+  for (size_t i = 0; i < w.size(); i++)
   {
-    d[i] = std::vector<unsigned int>(word_used.size() + 1);
-    d[i][0] = i;
+    d.push_back(std::vector<unsigned int>(word.size() + 1));
+    d[d.size() - 1][0] = d.size() - 1;
   }
-  for (size_t j = 1; j <= word_used.size(); j++)
-    d[0][j] = j;
 
   unsigned int sub_or_exact = 0;
-  bool b = freq != 0;
   bool b_break = false;
-  for (size_t i = 1; i <= w.size(); i++)
-    for (size_t j = 1; j <= word_used.size(); j++)
+  for (size_t i = last_dsize; i < d.size(); i++)
+    for (size_t j = 1; j <= word.size(); j++)
     {
-      sub_or_exact = w[i - 1] == word_used[j - 1] ? 0 : 1;
+      sub_or_exact = w[i - last_dsize] == word[j - 1] ? 0 : 1;
 
       d[i][j] = std::min({
         d[i - 1][j] + 1,
         d[i][j - 1] + 1,
         d[i - 1][j - 1] + sub_or_exact});
 
-      if (i > 1 && j > 1 && w[i - 1] == word_used[j - 2] && w[i - 2] == word_used[j - 1])
+      if (i > 1 && j > 1 && w[i - last_dsize] == word[j - 2] && (i == last_dsize ? lastchar_w : w[i - last_dsize - 1]) == word[j - 1])
         d[i][j] = std::min(d[i][j], d[i - 2][j - 2] + sub_or_exact);
 
-      if (d[i][j] > length)
+      /*if (d[i][j] > length)
       {
         unsigned int min = d[i][0];
         for (unsigned int k = 1; k < j && min > length; k++)
@@ -429,20 +445,26 @@ damereau_levenshtein(const std::string& w, const std::string& prefix_word, const
           i = w.size() + 1;
           break;
         }
-      }
+      }*/
     }
 
-  /*std::cout << "  ";
-  for (size_t j = 1; j <= word_used.size(); j++)
-    std::cout << word_used[j - 1] << " ";
+  /*
+  std::cout << "  ";
+  for (size_t j = 1; j <= word.size(); j++)
+    std::cout << word[j - 1] << " ";
   std::cout << std::endl;
-  for (size_t i = 1; i <= w.size(); i++)
+  for (size_t i = 1; i < d.size(); i++)
   {
-    std::cout << w[i - 1] << " ";
-    for (size_t j = 1; j <= word_used.size(); j++)
+    std::string s = "/";
+    if (w.size() >= d.size() - i)
+      s = w[w.size() - d.size() + i];
+    std::cout << s << " ";
+    for (size_t j = 1; j <= word.size(); j++)
       std::cout << d[i][j] << " ";
     std::cout << std::endl;
-  }*/
+  }
+  std::cout << std::endl;
+  */
 
-  return std::tuple(b_break ? length + 1 : d[w.size()][prefix_word.size()], b && d[w.size()][word.size()] <= length);
+  return d;
 } 

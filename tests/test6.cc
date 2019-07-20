@@ -9,9 +9,7 @@ int main()
   std::cout << "\033[1;37;40m" << "SearchN" << "\033[0m" << std::endl;
 
   std::vector<std::string> v = {
-    "navet", "maison", "maisonnette", "maisonnettes", "mai",
-    "maitre", "navet", "naviguer", "navette", "nouveau", "machoire",
-    "maitresse", "maitrise"
+    "zouzou69", "zouzou96", "zouzou9777"
   };
 
   PTrie ptrie;
@@ -21,14 +19,14 @@ int main()
   ptrie.sort();
 
 
-  std::vector<unsigned int> lengths = {2};
-  std::vector<std::string> words = {"m", "nave", "maitres"};
+  std::vector<unsigned int> lengths = {1};
+  std::vector<std::string> words = {"zouzou69"};
 
   for (auto length: lengths)
     for (auto word: words)
     {
       std::cout << "approx " << length << " " << word << std::endl;
-      print_result(ptrie.searchN(word, "", length, length));
+      print_result(ptrie.search(word, length));
     }
 
   std::cout << "OK" << std::endl;
