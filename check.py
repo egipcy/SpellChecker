@@ -39,7 +39,7 @@ nb_null = 0
 nb_ok = 0
 nb_omg = 0
 
-for distance in range(1,3):
+for distance in range(1, 3):
     b = False
     tot_time = 0.
     ref_tot_time = 0.
@@ -68,7 +68,6 @@ for distance in range(1,3):
                     ref_time = float(e[:-4])
                     break
 
-        print((time, ref_time))
         tot_time += time
         ref_tot_time += ref_time
 
@@ -87,9 +86,6 @@ for distance in range(1,3):
                     bool_break = True
                     b = True
                     break
-            '''if json_answer != json_ref_answer:
-                b = True
-                break'''
             if bool_break:
                 break
 
@@ -129,7 +125,7 @@ for distance in range(1,3):
 
     print('\n')
 
-nb_tot = nb_fails + nb_null + nb_ok + nb_omg
+nb_tot = float(nb_fails + nb_null + nb_ok + nb_omg)
 
 if response in ['y', 'Y']:
     print(((color.OKGREEN if memory < 512 else color.FAIL) + '%.0f MB\n' + color.ENDC) % (memory))

@@ -48,4 +48,4 @@ private:
 void print_result(const std::vector<std::tuple<std::string, unsigned long, unsigned int>>& result);
 
 std::vector<std::vector<unsigned int>>
-damereau_levenshtein(const std::vector<std::vector<unsigned int>>& d_input, const std::string& w, const char lastchar_w, const std::string& word, unsigned int length);
+damerau_levenshtein(const std::vector<std::vector<unsigned int>>& d_input, const std::string& w, const char lastchar_w, const std::string& word, unsigned int length);

@@ -350,7 +350,7 @@ PTrie::searchN(const std::vector<std::vector<unsigned int>>& d, const std::strin
   {
     auto w = std::get<STRING>(e);
 
-    auto d2 = damereau_levenshtein(d, w, prefix_w.size() == 0 ? 0 : prefix_w[prefix_w.size() - 1], word, origin_length); // DL between tot_w and word
+    auto d2 = damerau_levenshtein(d, w, prefix_w.size() == 0 ? 0 : prefix_w[prefix_w.size() - 1], word, origin_length); // DL between tot_w and word
 
     if (*std::min_element(d2[d2.size() - 1].cbegin(), d2[d2.size() - 1].cend()) <= origin_length) // We can pursue
     {
@@ -399,7 +399,7 @@ void print_result(const std::vector<std::tuple<std::string, unsigned long, unsig
 }
 
 std::vector<std::vector<unsigned int>>
-damereau_levenshtein(const std::vector<std::vector<unsigned int>>& d_input, const std::string& w, const char lastchar_w, const std::string& word, unsigned int length)
+damerau_levenshtein(const std::vector<std::vector<unsigned int>>& d_input, const std::string& w, const char lastchar_w, const std::string& word, unsigned int length)
 {
   // 4 operations: insertion, deletion, edition, inversion
   // No need to exceed length in term of distance
@@ -411,13 +411,14 @@ damereau_levenshtein(const std::vector<std::vector<unsigned int>>& d_input, cons
   d.reserve(d.size() + w.size());
   for (size_t i = 0; i < w.size(); i++)
   {
-    d.push_back(std::vector<unsigned int>(word.size() + 1));
+    d.push_back(std::vector<unsigned int>(word.size() + 1, UINT_MAX));
     d[d.size() - 1][0] = d.size() - 1;
   }
 
   unsigned int sub_or_exact = 0;
-  bool b_break = false;
   for (size_t i = last_dsize; i < d.size(); i++)
+  {
+    unsigned int min_line = d[i][0];
     for (size_t j = 1; j <= word.size(); j++)
     {
       sub_or_exact = w[i - last_dsize] == word[j - 1] ? 0 : 1;
@@ -430,23 +431,17 @@ damereau_levenshtein(const std::vector<std::vector<unsigned int>>& d_input, cons
       if (i > 1 && j > 1 && w[i - last_dsize] == word[j - 2] && (i == last_dsize ? lastchar_w : w[i - last_dsize - 1]) == word[j - 1])
         d[i][j] = std::min(d[i][j], d[i - 2][j - 2] + sub_or_exact);
 
-      /*if (d[i][j] > length)
+      if ((min_line = std::min(min_line, d[i][j])) > length)
       {
-        unsigned int min = d[i][0];
-        for (unsigned int k = 1; k < j && min > length; k++)
-          min = std::min(min, d[i][k]);
+        unsigned int min = min_line;
         for (auto it = d[i - 1].cbegin() + j - 1; it < d[i - 1].cend() && min > length; it++)
           min = std::min(min, *it);
 
         if (min > length)
-        {
-          b = false;
-          b_break = true;
-          i = w.size() + 1;
-          break;
-        }
-      }*/
+          return d;
+      }
     }
+  }
 
   /*
   std::cout << "  ";
