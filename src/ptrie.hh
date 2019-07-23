@@ -3,6 +3,7 @@
 #include <memory>
 #include <utility>
 #include <fstream>
+#include <set>
 
 class PTrie
 {
@@ -10,6 +11,8 @@ private:
   std::vector<std::tuple<std::string, std::shared_ptr<PTrie>, unsigned long>> v_;
 
   std::shared_ptr<PTrie> parent_;
+
+  std::set<char> vocabulary_;
 
 public:
   enum type {STRING, CHILD, FREQUENCE};
@@ -39,6 +42,8 @@ private:
 
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
   search0(const std::string& word, const std::string& prefix_w, unsigned int origin_length);
+  std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+  search1(const std::string& word, unsigned int origin_length);
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
   searchN(const std::vector<std::vector<unsigned int>>& d, const std::string& word, const std::string& prefix_w, unsigned int origin_length);
 };

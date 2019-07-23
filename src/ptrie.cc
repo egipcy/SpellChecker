@@ -28,6 +28,10 @@ void PTrie::insert(const std::string& word, unsigned long frequence)
   if (word.size() == 0)
     return;
 
+  // Add letters to vocabulary
+  for (auto c: word)
+    vocabulary_.insert(c);
+
   // Search a prefix of 'word' in edges
   auto index = search_prefix(word);
 
@@ -115,66 +119,7 @@ PTrie::search(const std::string& word, unsigned int length)
     return search0(word, "", length);
 
   if (length == 1)
-  {
-    std::vector<char> chars = {'+', '&', '_', '#', '.'};
-    for (auto c = 'a'; c <= 'z'; c++)
-      chars.push_back(c);
-    for (auto c = '0'; c <= '9'; c++)
-      chars.push_back(c);
-
-    auto ret = search0(word, "", 0);
-
-    auto new_word = word;
-
-    // Replacement
-    for (size_t i = 0; i < word.size(); i++)
-    {
-      for (auto new_c: chars)
-        if (word[i] != new_c)
-        {
-          new_word[i] = new_c;
-          auto r = search0(new_word, "", length);
-          extend(ret, r);
-        }
-      new_word[i] = word[i];
-    }
-
-    // Insertion
-    for (size_t i = 0; i < word.size() + 1; i++)
-    {
-      for (auto new_c: chars)
-      {
-        new_word = word;
-        new_word.insert(i, 1, new_c);
-        extend(ret, search0(new_word, "", length));
-      }
-    }
-
-    // Deletion
-    for (size_t i = 0; i < word.size(); i++)
-    {
-      new_word = word;
-      new_word.erase(i, 1);
-      extend(ret, search0(new_word, "", length));
-    }
-
-    // Inversion
-    for (size_t i = 1; i < word.size(); i++)
-      if (word[i - 1] != word[i])
-      {
-        new_word = word;
-        char c = new_word[i - 1];
-        new_word[i - 1] = new_word[i];
-        new_word[i] = c;
-        extend(ret, search0(new_word, "", length));
-      }
-
-    for (size_t i = 0; i < ret.size(); i++)
-      for (size_t j = i + 1; j < ret.size(); j++)
-        if (std::get<STRING>(ret[i]) == std::get<STRING>(ret[j]))
-          ret.erase(ret.cbegin() + j--);
-    return ret;
-  }
+    return search1(word, length);
 
 
   std::vector<std::vector<unsigned int>> d(1);
@@ -238,12 +183,13 @@ void PTrie::serialize(std::ofstream& file)
 {
   int depth = 0;
   int offset = 0;
+
   save_nodes_meta(file, depth, offset);
-  std::string pos = std::to_string(file.tellp()); //Offset to the data
+  std::string pos = std::to_string(file.tellp()); // Offset to the data
   save_edges(file);
   char n = '\n';
-  file.write(&n, sizeof(n)); //Delemiter between data and offset
-  file.write(pos.c_str(), pos.size()); //Append the data offset at the end
+  file.write(&n, sizeof(n)); // Delimiter between data and offset
+  file.write(pos.c_str(), pos.size()); // Append the data offset at the end
 }
 
 void PTrie::deserialize(const char* file_name)
@@ -254,17 +200,18 @@ void PTrie::deserialize(const char* file_name)
     std::cerr << "Error opening " << file_name << std::endl;
     exit(1);
   }
+
   auto file_size = lseek(fd, 0, SEEK_END);
-  char *chunk = reinterpret_cast<char*>(mmap(NULL, file_size, PROT_READ, MAP_FILE | MAP_PRIVATE | MAP_POPULATE, fd, 0));
+  char* chunk = reinterpret_cast<char*>(mmap(NULL, file_size, PROT_READ, MAP_FILE | MAP_PRIVATE | MAP_POPULATE, fd, 0));
   ::close(fd);
 
-  //Read the numbers at the end of the file
+  // Read the numbers at the end of the file
   int i = 0;
-  while (*(chunk+file_size+(--i)) != '\n')
+  while (*(chunk + file_size + (--i)) != '\n')
   {
     continue;
   }
-  int data_start = atoi(chunk+file_size+i+1); //at *(chunk+dataStart) starts the data
+  int data_start = atoi(chunk + file_size + i + 1); // the datas starts at *(chunk + data_start) 
   build_node(0, 0, 2, chunk, data_start, file_size);
 }
 
@@ -395,6 +342,66 @@ PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned in
   }
 
   return {};
+}
+
+std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+PTrie::search1(const std::string& word, unsigned int origin_length)
+{
+  std::string chars = "#&._+abcdefghijklmnopqrstuvwxyz0123456789";
+
+  auto ret = search0(word, "", 0);
+
+  auto new_word = word;
+
+  // Replacement
+  for (size_t i = 0; i < word.size(); i++)
+  {
+    for (auto new_c: chars)
+      if (word[i] != new_c)
+      {
+        new_word[i] = new_c;
+        extend(ret, search0(new_word, "", origin_length));
+      }
+    new_word[i] = word[i];
+  }
+
+  // Insertion
+  for (size_t i = 0; i < word.size() + 1; i++)
+  {
+    new_word.insert(i, 1, 0);
+    for (auto new_c: chars)
+    {
+      new_word[i] = new_c;
+      extend(ret, search0(new_word, "", origin_length));
+    }
+    new_word = word;
+  }
+
+  // Deletion
+  for (size_t i = 0; i < word.size(); i++)
+  {
+    new_word = word;
+    new_word.erase(i, 1);
+    extend(ret, search0(new_word, "", origin_length));
+  }
+
+  // Inversion
+  for (size_t i = 1; i < word.size(); i++)
+    if (word[i - 1] != word[i])
+    {
+      new_word = word;
+      char c = new_word[i - 1];
+      new_word[i - 1] = new_word[i];
+      new_word[i] = c;
+      extend(ret, search0(new_word, "", origin_length));
+    }
+
+  // Erase duplicates
+  for (size_t i = 0; i < ret.size(); i++)
+    for (size_t j = i + 1; j < ret.size(); j++)
+      if (std::get<STRING>(ret[i]) == std::get<STRING>(ret[j]))
+        ret.erase(ret.cbegin() + j--);
+  return ret;
 }
 
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
