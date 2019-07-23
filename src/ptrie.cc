@@ -323,16 +323,18 @@ PTrie::search_rec(const std::vector<std::vector<unsigned int>>& d, const std::st
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned int origin_length)
 {
-  for (const auto& e: v_)
+  auto pos = dicho(v_, word);
+
+  if (pos != std::numeric_limits<size_t>::max())
   {
-    const std::string& w = std::get<STRING>(e);
+    const std::string& w = std::get<STRING>(v_[pos]);
 
-    if (w.size() <= word.size() && memcmp(word.c_str(), w.c_str(), w.size()) == 0)
+    if (w.size() == word.size())
+      return {std::tuple<std::string, unsigned long, unsigned int>(prefix_w + w, std::get<FREQUENCE>(v_[pos]), origin_length)};
+
+    if (w.size() < word.size())
     {
-      if (w.size() == word.size())
-        return {std::tuple<std::string, unsigned long, unsigned int>(prefix_w + w, std::get<FREQUENCE>(e), origin_length)};
-
-      auto child = std::get<CHILD>(e);
+      auto child = std::get<CHILD>(v_[pos]);
       if (child)
         return child->search0(word.substr(w.size()), prefix_w + w, origin_length);
     }
@@ -462,4 +464,27 @@ damerau_levenshtein(const std::vector<std::vector<unsigned int>>& d_input, const
   */
 
   return d;
-} 
+}
+
+size_t dicho(const std::vector<std::tuple<std::string, std::shared_ptr<PTrie>, unsigned long>>& v, const std::string& word)
+{
+  size_t start = 0;
+  size_t end = v.size() - 1;
+
+  while (start <= end)
+  {
+    size_t middle = (start + end) / 2;
+    const std::string& w = std::get<PTrie::STRING>(v[middle]);
+
+    auto res = memcmp(word.c_str(), w.c_str(), w.size());
+
+    if (res == 0)
+      return middle;
+    else if (res > 0)
+      start = middle + 1;
+    else
+      end = middle - 1;
+  }
+
+  return std::numeric_limits<size_t>::max();
+}

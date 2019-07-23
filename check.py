@@ -39,7 +39,7 @@ nb_null = 0
 nb_ok = 0
 nb_omg = 0
 
-for distance in range(1, 3):
+for distance in range(3):
     b = False
     tot_time = 0.
     ref_tot_time = 0.
