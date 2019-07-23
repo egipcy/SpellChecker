@@ -547,6 +547,9 @@ size_t dicho(const std::vector<std::tuple<std::string, std::shared_ptr<PTrie>, u
 template <typename T>
 void extend(std::vector<T>& ret, const std::vector<T>& v)
 {
-  ret.reserve(ret.size() + v.size());
-  ret.insert(ret.end(), v.begin(), v.end());
+  if (v.size() != 0)
+  {
+    ret.reserve(ret.size() + v.size());
+    ret.insert(ret.end(), v.begin(), v.end());
+  }
 }
