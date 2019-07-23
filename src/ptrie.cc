@@ -122,8 +122,7 @@ PTrie::search(const std::string& word, unsigned int length)
     for (auto c = '0'; c <= '9'; c++)
       chars.push_back(c);
 
-    std::vector<std::string> words = {word};
-    words.reserve(1000);
+    auto ret = search0(word, "", 0);
 
     auto new_word = word;
 
@@ -134,7 +133,8 @@ PTrie::search(const std::string& word, unsigned int length)
         if (word[i] != new_c)
         {
           new_word[i] = new_c;
-          words.push_back(new_word);
+          auto r = search0(new_word, "", length);
+          extend(ret, r);
         }
       new_word[i] = word[i];
     }
@@ -146,7 +146,7 @@ PTrie::search(const std::string& word, unsigned int length)
       {
         new_word = word;
         new_word.insert(i, 1, new_c);
-        words.push_back(new_word);
+        extend(ret, search0(new_word, "", length));
       }
     }
 
@@ -155,7 +155,7 @@ PTrie::search(const std::string& word, unsigned int length)
     {
       new_word = word;
       new_word.erase(i, 1);
-      words.push_back(new_word);
+      extend(ret, search0(new_word, "", length));
     }
 
     // Inversion
@@ -166,24 +166,13 @@ PTrie::search(const std::string& word, unsigned int length)
         char c = new_word[i - 1];
         new_word[i - 1] = new_word[i];
         new_word[i] = c;
-        words.push_back(new_word);
+        extend(ret, search0(new_word, "", length));
       }
 
-    bool b;
-    std::vector<std::tuple<std::string, unsigned long, unsigned int>> ret = {search0(words[0], "", 0)};
-    for (size_t i = 1; i < words.size(); i++)
-    {
-      b = true;
-      for (size_t j = 0; j < i; j++)
-        if (words[i] == words[j])
-        {
-          b = false;
-          break;
-        }
-
-      if (b)
-        extend(ret, search0(words[i], "", length));
-    }
+    for (size_t i = 0; i < ret.size(); i++)
+      for (size_t j = i + 1; j < ret.size(); j++)
+        if (std::get<STRING>(ret[i]) == std::get<STRING>(ret[j]))
+          ret.erase(ret.cbegin() + j--);
     return ret;
   }
 
