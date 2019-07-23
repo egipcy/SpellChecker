@@ -71,6 +71,7 @@ for distance in range(3):
         tot_time += time
         ref_tot_time += ref_time
 
+        print(tot_time, ref_tot_time)
         if not derive_stream:
             answer, ref_answer = res[0].split('{{{')
 
@@ -106,7 +107,7 @@ for distance in range(3):
             print(('Norm: ' + color.BOLD + color.FAIL + '%dr/s' + color.ENDC + ' < '
                 + color.HEADER + '%dr/s' + color.ENDC + ' < '
                 + color.OKBLUE + '%dr/s' + color.ENDC) % (nb_req_norm, min_req[min(distance, 2)], ref_nbrps[distance]))
-        elif nb_req_norm > ref_nb_req:
+        elif nb_req_norm > ref_nbrps[distance]:
             nb_omg += 1
             print(('Real: ' + color.HEADER + '%dr/s' + color.ENDC + ' < '
                 + color.OKBLUE + '%dr/s' + color.ENDC + ' < '

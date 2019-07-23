@@ -112,7 +112,69 @@ std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search(const std::string& word, unsigned int length)
 {
   if (length == 0)
-    return search_rec({}, word, "", length, length);
+    return search0(word, "", length);
+
+  if (length == 1)
+  {
+    std::vector<char> chars = {'+', '&', '_', '#', '.'};
+    for (auto c = 'a'; c <= 'z'; c++)
+      chars.push_back(c);
+    for (auto c = '0'; c <= '9'; c++)
+      chars.push_back(c);
+
+    auto ret = search0(word, "", 0);
+
+    auto new_word = word;
+
+    // Replacement
+    for (size_t i = 0; i < word.size(); i++)
+    {
+      for (auto new_c: chars)
+        if (word[i] != new_c)
+        {
+          new_word[i] = new_c;
+          auto r = search0(new_word, "", length);
+          extend(ret, r);
+        }
+      new_word[i] = word[i];
+    }
+
+    // Insertion
+    for (size_t i = 0; i < word.size() + 1; i++)
+    {
+      for (auto new_c: chars)
+      {
+        new_word = word;
+        new_word.insert(i, 1, new_c);
+        extend(ret, search0(new_word, "", length));
+      }
+    }
+
+    // Deletion
+    for (size_t i = 0; i < word.size(); i++)
+    {
+      new_word = word;
+      new_word.erase(i, 1);
+      extend(ret, search0(new_word, "", length));
+    }
+
+    // Inversion
+    for (size_t i = 1; i < word.size(); i++)
+      if (word[i - 1] != word[i])
+      {
+        new_word = word;
+        char c = new_word[i - 1];
+        new_word[i - 1] = new_word[i];
+        new_word[i] = c;
+        extend(ret, search0(new_word, "", length));
+      }
+
+    for (size_t i = 0; i < ret.size(); i++)
+      for (size_t j = i + 1; j < ret.size(); j++)
+        if (std::get<STRING>(ret[i]) == std::get<STRING>(ret[j]))
+          ret.erase(ret.cbegin() + j--);
+    return ret;
+  }
 
 
   std::vector<std::vector<unsigned int>> d(1);
@@ -121,7 +183,7 @@ PTrie::search(const std::string& word, unsigned int length)
   for (size_t j = 1; j <= word.size(); j++)
     d[0][j] = j;
   
-  return search_rec(d, word, "", length, length);
+  return searchN(d, word, "", length);
 }
 
 void PTrie::save_nodes_meta(std::ofstream& file, int depth, int& offset)
@@ -312,15 +374,6 @@ size_t PTrie::search_prefix(const std::string& word) const
 }
 
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
-PTrie::search_rec(const std::vector<std::vector<unsigned int>>& d, const std::string& word, const std::string& prefix_w, unsigned int length, unsigned int origin_length)
-{
-  if (length == 0)
-    return search0(word, prefix_w, origin_length);
-
-  return searchN(d, word, prefix_w, length, origin_length);
-}
-
-std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned int origin_length)
 {
   auto pos = dicho(v_, word);
@@ -328,9 +381,10 @@ PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned in
   if (pos != std::numeric_limits<size_t>::max())
   {
     const std::string& w = std::get<STRING>(v_[pos]);
+    auto freq = std::get<FREQUENCE>(v_[pos]);
 
-    if (w.size() == word.size())
-      return {std::tuple<std::string, unsigned long, unsigned int>(prefix_w + w, std::get<FREQUENCE>(v_[pos]), origin_length)};
+    if (w.size() == word.size() && freq != 0)
+      return {std::tuple<std::string, unsigned long, unsigned int>(prefix_w + w, freq, origin_length)};
 
     if (w.size() < word.size())
     {
@@ -344,7 +398,7 @@ PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned in
 }
 
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
-PTrie::searchN(const std::vector<std::vector<unsigned int>>& d, const std::string& word, const std::string& prefix_w, unsigned int length, unsigned int origin_length)
+PTrie::searchN(const std::vector<std::vector<unsigned int>>& d, const std::string& word, const std::string& prefix_w, unsigned int origin_length)
 {
   std::vector<std::tuple<std::string, unsigned long, unsigned int>> ret;
 
@@ -363,18 +417,15 @@ PTrie::searchN(const std::vector<std::vector<unsigned int>>& d, const std::strin
 
       auto l = d2[tot_w.size()][word.size()];
 
-      if (freq != 0 && l <= origin_length) // tot_w is accepted
-      {
+      if (freq != 0 && d2[tot_w.size()][word.size()] <= origin_length) // tot_w is accepted
         ret.emplace_back(tot_w, freq, l);
-      }
 
       if (child) // let's continue
       {
-        auto v = child->searchN(d2, word, tot_w, origin_length - l, origin_length);
+        auto v = child->searchN(d2, word, tot_w, origin_length);
 
         // ret = ret + v
-        ret.reserve(ret.size() + v.size());
-        ret.insert(ret.end(), v.begin(), v.end());
+        extend(ret, v);
       }
     }
   }
@@ -416,7 +467,6 @@ damerau_levenshtein(const std::vector<std::vector<unsigned int>>& d_input, const
     d.push_back(std::vector<unsigned int>(word.size() + 1, UINT_MAX));
     d[d.size() - 1][0] = d.size() - 1;
   }
-
   unsigned int sub_or_exact = 0;
   for (size_t i = last_dsize; i < d.size(); i++)
   {
@@ -476,15 +526,27 @@ size_t dicho(const std::vector<std::tuple<std::string, std::shared_ptr<PTrie>, u
     size_t middle = (start + end) / 2;
     const std::string& w = std::get<PTrie::STRING>(v[middle]);
 
-    auto res = memcmp(word.c_str(), w.c_str(), w.size());
+    int res = memcmp(word.c_str(), w.c_str(), std::min(word.size(), w.size()));
+
 
     if (res == 0)
       return middle;
     else if (res > 0)
       start = middle + 1;
     else
+    {
+      if (middle == 0)  // Handle overflow
+        break;
       end = middle - 1;
+    }
   }
 
   return std::numeric_limits<size_t>::max();
+}
+
+template <typename T>
+void extend(std::vector<T>& ret, const std::vector<T>& v)
+{
+  ret.reserve(ret.size() + v.size());
+  ret.insert(ret.end(), v.begin(), v.end());
 }
