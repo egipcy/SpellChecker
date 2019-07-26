@@ -12,7 +12,8 @@ private:
 
   std::shared_ptr<PTrie> parent_;
 
-  std::set<char> vocabulary_;
+public:
+  static inline std::string vocabulary_;
 
 public:
   enum type {STRING, CHILD, FREQUENCE};
@@ -27,9 +28,6 @@ public:
 
   void sort();
 
-  std::vector<std::tuple<std::string, unsigned long, unsigned int>>
-  search(const std::string& word, unsigned int length);
-
   void serialize(std::ofstream& file);
   void deserialize(const char* file_name);
 
@@ -40,6 +38,11 @@ private:
   void build_node(int depth, int last_depth, int curr_pos, const char* chunk, int data_start, const off_t& file_size);
   void next_comma(int& curr_pos, const char* chunk);
 
+public:
+  std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+  search(const std::string& word, unsigned int length);
+
+private:
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
   search0(const std::string& word, const std::string& prefix_w, unsigned int origin_length);
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>

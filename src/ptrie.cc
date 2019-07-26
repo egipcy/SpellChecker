@@ -28,9 +28,10 @@ void PTrie::insert(const std::string& word, unsigned long frequence)
   if (word.size() == 0)
     return;
 
-  // Add letters to vocabulary
+  // Add chars in vocabulary
   for (auto c: word)
-    vocabulary_.insert(c);
+    if (vocabulary_.find(c) == std::string::npos)
+      vocabulary_ += c;
 
   // Search a prefix of 'word' in edges
   auto index = search_prefix(word);
@@ -112,25 +113,6 @@ void PTrie::sort()
   std::sort(v_.begin(), v_.end());
 }
 
-std::vector<std::tuple<std::string, unsigned long, unsigned int>>
-PTrie::search(const std::string& word, unsigned int length)
-{
-  if (length == 0)
-    return search0(word, "", length);
-
-  if (length == 1)
-    return search1(word, length);
-
-
-  std::vector<std::vector<unsigned int>> d(1);
-  d[0] = std::vector<unsigned int>(word.size() + 1);
-
-  for (size_t j = 1; j <= word.size(); j++)
-    d[0][j] = j;
-  
-  return searchN(d, word, "", length);
-}
-
 void PTrie::save_nodes_meta(std::ofstream& file, int depth, int& offset)
 {
   char c = ',';
@@ -187,8 +169,11 @@ void PTrie::serialize(std::ofstream& file)
   save_nodes_meta(file, depth, offset);
   std::string pos = std::to_string(file.tellp()); // Offset to the data
   save_edges(file);
-  char n = '\n';
-  file.write(&n, sizeof(n)); // Delimiter between data and offset
+
+  file.write("\n", 1); // Delimiter for vocabulary
+  file.write(vocabulary_.c_str(), vocabulary_.size());
+
+  file.write("\n", 1); // Delimiter between data and offset
   file.write(pos.c_str(), pos.size()); // Append the data offset at the end
 }
 
@@ -206,12 +191,13 @@ void PTrie::deserialize(const char* file_name)
   ::close(fd);
 
   // Read the numbers at the end of the file
-  int i = 0;
-  while (*(chunk + file_size + (--i)) != '\n')
-  {
-    continue;
-  }
-  int data_start = atoi(chunk + file_size + i + 1); // the datas starts at *(chunk + data_start) 
+  auto last_newline = std::string(chunk).find_last_of("\n");
+  int data_start = atoi(chunk + last_newline); // the datas starts at *(chunk + data_start)
+
+  // Read vocabulary
+  auto penultimate_newline = std::string(chunk).find_last_of("\n", last_newline - 1);
+  vocabulary_ = std::string(chunk + penultimate_newline + 1, last_newline - penultimate_newline - 1);
+
   build_node(0, 0, 2, chunk, data_start, file_size);
 }
 
@@ -260,17 +246,11 @@ void PTrie::build_node(int depth, int last_depth, int curr_pos, const char* chun
       co = atoi(chunk+curr_pos);
 
       while (*(chunk+curr_pos++) != ';')
-      {
         if (*(chunk+curr_pos) == ',')
-        {
           fr = strtoul(chunk+(++curr_pos), nullptr, 10);
-        }
-      }
       pt->v_.emplace_back(std::string(data_chunk + of, co), nullptr, fr);
       if (curr_pos >= data_start-1)
-      {
         return;
-      }
       
       //Reading next depth
       read_depth = atoi(chunk+curr_pos++);
@@ -321,6 +301,25 @@ size_t PTrie::search_prefix(const std::string& word) const
 }
 
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+PTrie::search(const std::string& word, unsigned int length)
+{
+  if (length == 0)
+    return search0(word, "", length);
+
+  if (length == 1)
+    return search1(word, length);
+
+
+  std::vector<std::vector<unsigned int>> d(1);
+  d[0] = std::vector<unsigned int>(word.size() + 1);
+
+  for (size_t j = 1; j <= word.size(); j++)
+    d[0][j] = j;
+  
+  return searchN(d, word, "", length);
+}
+
+std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned int origin_length)
 {
   auto pos = dicho(v_, word);
@@ -347,8 +346,6 @@ PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned in
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search1(const std::string& word, unsigned int origin_length)
 {
-  std::string chars = "#&._+abcdefghijklmnopqrstuvwxyz0123456789";
-
   auto ret = search0(word, "", 0);
 
   auto new_word = word;
@@ -356,7 +353,7 @@ PTrie::search1(const std::string& word, unsigned int origin_length)
   // Replacement
   for (size_t i = 0; i < word.size(); i++)
   {
-    for (auto new_c: chars)
+    for (auto new_c: vocabulary_)
       if (word[i] != new_c)
       {
         new_word[i] = new_c;
@@ -369,7 +366,7 @@ PTrie::search1(const std::string& word, unsigned int origin_length)
   for (size_t i = 0; i < word.size() + 1; i++)
   {
     new_word.insert(i, 1, 0);
-    for (auto new_c: chars)
+    for (auto new_c: vocabulary_)
     {
       new_word[i] = new_c;
       extend(ret, search0(new_word, "", origin_length));
