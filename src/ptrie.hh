@@ -5,6 +5,10 @@
 #include <fstream>
 #include <set>
 
+#include "bloom.hh"
+
+#define BLOOM_FILTER false
+
 class PTrie
 {
 private:
@@ -14,6 +18,10 @@ private:
 
 public:
   static inline std::string vocabulary_;
+
+#if BLOOM_FILTER
+  static inline BloomFilter filter_;
+#endif
 
 public:
   enum type {STRING, CHILD, FREQUENCE};
@@ -46,6 +54,8 @@ private:
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
   search0(const std::string& word, const std::string& prefix_w, unsigned int origin_length);
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+  search0_rec(const std::string& word, const std::string& prefix_w, unsigned int origin_length);
+  std::vector<std::tuple<std::string, unsigned long, unsigned int>>
   search1(const std::string& word, unsigned int origin_length);
   std::vector<std::tuple<std::string, unsigned long, unsigned int>>
   searchN(const std::vector<std::vector<unsigned int>>& d, const std::string& word, const std::string& prefix_w, unsigned int origin_length);
@@ -54,7 +64,7 @@ private:
 void print_result(const std::vector<std::tuple<std::string, unsigned long, unsigned int>>& result);
 
 std::vector<std::vector<unsigned int>>
-damerau_levenshtein(const std::vector<std::vector<unsigned int>>& d_input, const std::string& w, const char lastchar_w, const std::string& word, unsigned int length);
+damerau_levenshtein(std::vector<std::vector<unsigned int>> dl, const std::string& w, const char lastchar_w, const std::string& word, unsigned int length);
 
 size_t dicho(const std::vector<std::tuple<std::string, std::shared_ptr<PTrie>, unsigned long>>& v, const std::string& word);
 

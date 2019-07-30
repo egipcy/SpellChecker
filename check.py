@@ -11,7 +11,7 @@ class color:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-response = raw_input('Test memory (y/N): ')
+response = raw_input('Recompile dict (y/N): ')
 print('\n')
 
 if response in ['y', 'Y']:
@@ -30,16 +30,16 @@ if response in ['y', 'Y']:
 
 
 derive_stream = False
-ref_nbrps = [212089.1, 54522.6, 186.0]
-min_req = [3000, 300, 30]
-nbreq_per_dist = [200000, 2000, 200]
+ref_nbrps = [212089.1, 54522.6, 186.0, 42, 42]
+min_req = [3000, 300, 30, 0, 0]
+nbreq_per_dist = [200000, 2000, 200, 20, 2]
 
 nb_fails = 0
 nb_null = 0
 nb_ok = 0
 nb_omg = 0
 
-for distance in range(3):
+for distance in range(5):
     b = False
     tot_time = 0.
     ref_tot_time = 0.
@@ -71,19 +71,27 @@ for distance in range(3):
         tot_time += time
         ref_tot_time += ref_time
 
-        print(tot_time, ref_tot_time)
+        print("Time: %.2fs | Ref: %.2fs" % (tot_time, ref_tot_time))
         if not derive_stream:
             answer, ref_answer = res[0].split('{{{')
 
-            json_answer = [sorted(json.loads(a)) for a in answer.split('\n')[:-1]]
-            json_ref_answer = [sorted(json.loads(a)) for a in ref_answer.split('\n')[:-1]]
+            json_answer = [a for a in answer.split('\n')[:-1]]
+            json_ref_answer = [a for a in ref_answer.split('\n')[:-1]]
 
             bool_break = False
             for a, r_a in zip(json_answer, json_ref_answer):
                 if a != r_a:
-                    print(a)
+                    if len(a) > 1000:
+                        print(str(a[:500]) + ' ... (%d elements)' % (len(a.split('{'))))
+                    else:
+                        print(a)
+
                     print('\n')
-                    print(r_a)
+
+                    if len(r_a) > 1000:
+                        print(str(r_a[:500]) + ' ...(%d elements)' % (len(r_a.split('{'))))
+                    else:
+                        print(r_a)
                     bool_break = True
                     b = True
                     break
@@ -99,30 +107,30 @@ for distance in range(3):
     if b:
         nb_fails += 1
     else:
-        if nb_req_norm < min_req[min(distance, 2)]:
+        if nb_req_norm < min_req[distance]:
             nb_null += 1
             print(('Real: ' + color.BOLD + color.FAIL + '%dr/s' + color.ENDC + ' < '
                 + color.HEADER + '%dr/s' + color.ENDC + ' < '
-                + color.OKBLUE + '%dr/s' + color.ENDC) % (nb_req, min_req[min(distance, 2)], ref_nb_req))
+                + color.OKBLUE + '%dr/s' + color.ENDC) % (nb_req, min_req[distance], ref_nb_req))
             print(('Norm: ' + color.BOLD + color.FAIL + '%dr/s' + color.ENDC + ' < '
                 + color.HEADER + '%dr/s' + color.ENDC + ' < '
-                + color.OKBLUE + '%dr/s' + color.ENDC) % (nb_req_norm, min_req[min(distance, 2)], ref_nbrps[distance]))
+                + color.OKBLUE + '%dr/s' + color.ENDC) % (nb_req_norm, min_req[distance], ref_nbrps[distance]))
         elif nb_req_norm > ref_nbrps[distance]:
             nb_omg += 1
             print(('Real: ' + color.HEADER + '%dr/s' + color.ENDC + ' < '
                 + color.OKBLUE + '%dr/s' + color.ENDC + ' < '
-                + color.BOLD + color.YELLOW + color.UNDERLINE + '%dr/s' + color.ENDC) % (min_req[min(distance, 2)], ref_nb_req, nb_req))
+                + color.BOLD + color.YELLOW + color.UNDERLINE + '%dr/s' + color.ENDC) % (min_req[distance], ref_nb_req, nb_req))
             print(('Norm: ' + color.HEADER + '%dr/s' + color.ENDC + ' < '
                 + color.OKBLUE + '%dr/s' + color.ENDC + ' < '
-                + color.BOLD + color.YELLOW + color.UNDERLINE + '%dr/s' + color.ENDC) % (min_req[min(distance, 2)], ref_nbrps[distance], nb_req_norm))
+                + color.BOLD + color.YELLOW + color.UNDERLINE + '%dr/s' + color.ENDC) % (min_req[distance], ref_nbrps[distance], nb_req_norm))
         else:
             nb_ok += 1
             print(('Real: ' + color.HEADER + '%dr/s' + color.ENDC + ' < '
                 + color.BOLD + color.OKGREEN + '%dr/s' + color.ENDC + ' < '
-                + color.OKBLUE + '%dr/s' + color.ENDC) % (min_req[min(distance, 2)], nb_req, ref_nb_req))
+                + color.OKBLUE + '%dr/s' + color.ENDC) % (min_req[distance], nb_req, ref_nb_req))
             print(('Norm: ' + color.HEADER + '%dr/s' + color.ENDC + ' < '
                 + color.BOLD + color.OKGREEN + '%dr/s' + color.ENDC + ' < '
-                + color.OKBLUE + '%dr/s' + color.ENDC) % (min_req[min(distance, 2)], nb_req_norm, ref_nbrps[distance]))
+                + color.OKBLUE + '%dr/s' + color.ENDC) % (min_req[distance], nb_req_norm, ref_nbrps[distance]))
 
     print('\n')
 

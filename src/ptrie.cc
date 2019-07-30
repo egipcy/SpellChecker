@@ -33,6 +33,11 @@ void PTrie::insert(const std::string& word, unsigned long frequence)
     if (vocabulary_.find(c) == std::string::npos)
       vocabulary_ += c;
 
+#if BLOOM_FILTER
+  // Add word to bloom filter
+  filter_.add(word);
+#endif
+
   // Search a prefix of 'word' in edges
   auto index = search_prefix(word);
 
@@ -170,6 +175,12 @@ void PTrie::serialize(std::ofstream& file)
   std::string pos = std::to_string(file.tellp()); // Offset to the data
   save_edges(file);
 
+#if BLOOM_FILTER
+  file.write("\n", 1); // Delimiter for Bloom filter
+  std::string bloomfilter = filter_.to_string();
+  file.write(bloomfilter.c_str(), bloomfilter.size());
+#endif
+
   file.write("\n", 1); // Delimiter for vocabulary
   file.write(vocabulary_.c_str(), vocabulary_.size());
 
@@ -197,6 +208,12 @@ void PTrie::deserialize(const char* file_name)
   // Read vocabulary
   auto penultimate_newline = std::string(chunk).find_last_of("\n", last_newline - 1);
   vocabulary_ = std::string(chunk + penultimate_newline + 1, last_newline - penultimate_newline - 1);
+
+#if BLOOM_FILTER
+  // Read Bloom filter
+  auto antepenultimate_newline = std::string(chunk).find_last_of("\n", penultimate_newline - 1);
+  filter_.from_string(std::string(chunk + antepenultimate_newline + 1, penultimate_newline - antepenultimate_newline - 1));
+#endif
 
   build_node(0, 0, 2, chunk, data_start, file_size);
 }
@@ -303,24 +320,56 @@ size_t PTrie::search_prefix(const std::string& word) const
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search(const std::string& word, unsigned int length)
 {
+  std::vector<std::tuple<std::string, unsigned long, unsigned int>> ret;
+
   if (length == 0)
-    return search0(word, "", length);
+    ret = search0(word, "", length);
 
-  if (length == 1)
-    return search1(word, length);
+  else if (length == 1)
+    ret = search1(word, length);
 
+  else
+  {
+    std::vector<std::vector<unsigned int>> d(1);
+    d[0] = std::vector<unsigned int>(word.size() + 1);
 
-  std::vector<std::vector<unsigned int>> d(1);
-  d[0] = std::vector<unsigned int>(word.size() + 1);
+    for (size_t j = 1; j <= word.size(); j++)
+      d[0][j] = j;
+    
+    ret = searchN(d, word, "", length);
+  }
 
-  for (size_t j = 1; j <= word.size(); j++)
-    d[0][j] = j;
-  
-  return searchN(d, word, "", length);
+  // Sort results
+  std::sort(ret.begin(), ret.end(),
+    [](const std::tuple<std::string, unsigned long, unsigned int>& a,
+      const std::tuple<std::string, unsigned long, unsigned int>& b)
+    {
+      if (std::get<2>(a) != std::get<2>(b))
+        return std::get<2>(a) < std::get<2>(b);
+      if (std::get<1>(a) != std::get<1>(b))
+        return std::get<1>(a) > std::get<1>(b);
+      return std::get<0>(a) < std::get<0>(b);
+    }
+  );
+
+  return ret;
 }
 
 std::vector<std::tuple<std::string, unsigned long, unsigned int>>
 PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned int origin_length)
+{
+#if BLOOM_FILTER
+  if (filter_.has_word(word))
+    return search0_rec(word, prefix_w, origin_length);
+
+  return {};
+#else
+  return search0_rec(word, prefix_w, origin_length);
+#endif
+}
+
+std::vector<std::tuple<std::string, unsigned long, unsigned int>>
+PTrie::search0_rec(const std::string& word, const std::string& prefix_w, unsigned int origin_length)
 {
   auto pos = dicho(v_, word);
 
@@ -336,7 +385,7 @@ PTrie::search0(const std::string& word, const std::string& prefix_w, unsigned in
     {
       auto child = std::get<CHILD>(v_[pos]);
       if (child)
-        return child->search0(word.substr(w.size()), prefix_w + w, origin_length);
+        return child->search0_rec(word.substr(w.size()), prefix_w + w, origin_length);
     }
   }
 
@@ -410,23 +459,30 @@ PTrie::searchN(const std::vector<std::vector<unsigned int>>& d, const std::strin
   {
     auto w = std::get<STRING>(e);
 
-    auto d2 = damerau_levenshtein(d, w, prefix_w.size() == 0 ? 0 : prefix_w[prefix_w.size() - 1], word, origin_length); // DL between tot_w and word
+    auto dl = damerau_levenshtein(d, w, prefix_w.size() == 0 ? 0 : prefix_w[prefix_w.size() - 1], word, origin_length); // DL between tot_w and word
 
-    if (*std::min_element(d2[d2.size() - 1].cbegin(), d2[d2.size() - 1].cend()) <= origin_length) // We can pursue
+    bool b = false;
+    for (auto e: dl[dl.size() - 1])
+      if (e <= origin_length)
+      {
+        b = true;
+        break;
+      }
+    if (b) // We can pursue
     {
       auto freq = std::get<FREQUENCE>(e);
       auto child = std::get<CHILD>(e);
 
       auto tot_w = prefix_w + w;
 
-      auto l = d2[tot_w.size()][word.size()];
+      auto l = dl[tot_w.size()][word.size()];
 
-      if (freq != 0 && d2[tot_w.size()][word.size()] <= origin_length) // tot_w is accepted
+      if (freq != 0 && dl[tot_w.size()][word.size()] <= origin_length) // tot_w is accepted
         ret.emplace_back(tot_w, freq, l);
 
       if (child) // let's continue
       {
-        auto v = child->searchN(d2, word, tot_w, origin_length);
+        auto v = child->searchN(dl, word, tot_w, origin_length);
 
         // ret = ret + v
         extend(ret, v);
@@ -456,50 +512,39 @@ void print_result(const std::vector<std::tuple<std::string, unsigned long, unsig
 }
 
 std::vector<std::vector<unsigned int>>
-damerau_levenshtein(const std::vector<std::vector<unsigned int>>& d_input, const std::string& w, const char lastchar_w, const std::string& word, unsigned int length)
+damerau_levenshtein(std::vector<std::vector<unsigned int>> dl, const std::string& w, const char lastchar_w, const std::string& word, unsigned int length)
 {
   // 4 operations: insertion, deletion, edition, inversion
   // No need to exceed length in term of distance
-  auto d = d_input;
 
-  auto last_dsize = d.size();
+  auto last_dsize = dl.size();
 
   // Add rows in table for each letter of w
-  d.reserve(d.size() + w.size());
+  dl.reserve(dl.size() + w.size());
   for (size_t i = 0; i < w.size(); i++)
   {
-    d.push_back(std::vector<unsigned int>(word.size() + 1, UINT_MAX));
-    d[d.size() - 1][0] = d.size() - 1;
+    dl.emplace_back(word.size() + 1, UINT_MAX);
+    dl[dl.size() - 1][0] = dl.size() - 1;
   }
-  unsigned int sub_or_exact = 0;
-  for (size_t i = last_dsize; i < d.size(); i++)
+
+  for (size_t i = last_dsize; i < dl.size(); i++)
   {
-    unsigned int min_line = d[i][0];
+    unsigned int min_line = dl[i][0];
     for (size_t j = 1; j <= word.size(); j++)
     {
-      sub_or_exact = w[i - last_dsize] == word[j - 1] ? 0 : 1;
+      unsigned sub_or_exact = w[i - last_dsize] == word[j - 1] ? 0 : 1;
 
-      d[i][j] = std::min({
-        d[i - 1][j] + 1,
-        d[i][j - 1] + 1,
-        d[i - 1][j - 1] + sub_or_exact});
+      dl[i][j] = std::min({
+        dl[i - 1][j] + 1,
+        dl[i][j - 1] + 1,
+        dl[i - 1][j - 1] + sub_or_exact});
 
       if (i > 1 && j > 1 && w[i - last_dsize] == word[j - 2] && (i == last_dsize ? lastchar_w : w[i - last_dsize - 1]) == word[j - 1])
-        d[i][j] = std::min(d[i][j], d[i - 2][j - 2] + sub_or_exact);
-
-      if ((min_line = std::min(min_line, d[i][j])) > length)
-      {
-        unsigned int min = min_line;
-        for (auto it = d[i - 1].cbegin() + j - 1; it < d[i - 1].cend() && min > length; it++)
-          min = std::min(min, *it);
-
-        if (min > length)
-          return d;
-      }
+        dl[i][j] = std::min(dl[i][j], dl[i - 2][j - 2] + sub_or_exact);
     }
   }
 
-  /*
+  /* Printing
   std::cout << "  ";
   for (size_t j = 1; j <= word.size(); j++)
     std::cout << word[j - 1] << " ";
@@ -517,7 +562,7 @@ damerau_levenshtein(const std::vector<std::vector<unsigned int>>& d_input, const
   std::cout << std::endl;
   */
 
-  return d;
+  return dl;
 }
 
 size_t dicho(const std::vector<std::tuple<std::string, std::shared_ptr<PTrie>, unsigned long>>& v, const std::string& word)
