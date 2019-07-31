@@ -4,3 +4,4 @@ test[0-9]
 file.txt
 test_*.bin
 build/
+mydict.bin
