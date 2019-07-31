@@ -1,0 +1,73 @@
+Spell Checker
+
+This program is about finding words in a dictionary as fast as possible.
+It finds exact word with command: "approx 0 toto"
+	or approximation: "approx 2 toto".
+The number is the Damerau-Levenshtein distance to which it searches words.
+
+Damerau-Levenshtein distance contains:
+* Insertion: "topto" is at distance 1 of "toto"
+* Deletion: "tto" is at distance 1 of "toto"
+* Replacement: "tota" is at distance 1 of "toto"
+* Inversion: "otto" is at distance 1 of "toto"
+
+The program is separated in two parts:
+* TextMiningCompiler: it creates a Patricia Trie from a list of words and
+	compiles it in a file.
+	Usage: ./TextMiningCompiler /path/to/words.txt /path/to/dict.bin
+	How it works: it insert each word in a Patricia Trie, then it
+		serializes it in a file.
+* TextMiningApp: it returns a list of words at a given distance of a given
+	word.
+	Usage: echo "approx 1 toto" | ./TextMiningApp /path/to/dict.bin
+	Example of result: {"topto", "tto", "tota", "otto"} if those words were
+		in the given list.
+	How it works: it deserializes the given file and reconstruct the
+		Patricia Trie. It then searches words inside of it.
+		For distance:
+		* 0: it searches an exact match, simplest case.
+		* 1: it generates all possible words and find them with exact
+			match.
+		* >1: it computes a Damerau-Levenshtein table between the
+			searched word and any word inside the Patricia Trie.
+The list of words needs to have a number associated to each word which is the
+	frequency of the word in a processed bunch of files.
+
+
+QUESTIONS
+1.	Décrivez les choix de design de votre programme
+
+Nous utilisons un Patricia Trie. Il est serialisé de manière à n'avoir que des positions+offsets sur les arcs. Il est ensuite déserialisé et reconstruis pour faire des recherches dessus.
+
+Pour une distance = 0, on fait une simple recherche exacte.
+Pour une distance = 1, on génère tous les mots possible (insertion ou suppression ou remplacement d'une lettre ou inversion de deux lettres juxtaposées) puis on les recherches dans le trie.
+Pour une distance = 2, on calcule le tableau de distance entre deux mots (algorithme de Damerau-Levenshtein).
+
+2.	Listez l’ensemble des tests effectués sur votre programme (en plus des units tests)
+
+La commande est "python check.py".
+On teste la mémoire lors de la compilation du dictionnaire et on vérifie qu'elle est inférieure à 512Mo. On vérifie la sortie de notre programme avec la référence pour les distances de 0 à 4. On calcule les temps mis par notre programme et la référence. On les normalisent pour simuler une puissance de 2,7 GHz Intel Core i7. On compare notre temps avec le minimum requis et avec la référence.
+
+3.	Avez-vous détecté des cas où la correction par distance ne fonctionnait pas (même avec une distance élevée) ?
+
+Oui, quand on utilise des symboles hors de l'alphabet d'origine.
+
+4.	Quelle est la structure de données que vous avez implémentée dans votre projet, pourquoi ?
+
+Le Patricia Trie.
+C'était un challenge modéré : c'est une structure plus compliquée et plus performante qu'un Trie mais moins qu'un Judy Array.
+De manière plus générale, le Patricia Trie permet une compression préfixe ce qui permet une compression avec un grand gain de temps pour une recherche.
+
+5.	Proposez un réglage automatique de la distance pour un programme qui prend juste une chaîne de caractères en entrée, donner le processus d’évaluation ainsi que les résultats
+
+Pour moins de 3 lettres : distance 0.
+Pour 3 à 6 lettres : distance 1.
+Pour plus de 6 lettres : distance 2.
+
+6.	Comment comptez vous améliorer les performances de votre programme
+
+En évitant de reconstruire tout le Patricia Trie et en mappant le dictionnaire pour faire les recherches.
+
+7.	Que manque-t-il à votre correcteur orthographique pour qu’il soit à l’état de l’art ?
+
+D'implémenter une structure plus performante que le Patricia Trie (comme le Judy Array) et de mapper le dictionnaire pour faire les recherches et ainsi éviter la désérialisation et la reconstruction complète du Patricia Trie en mémoire.

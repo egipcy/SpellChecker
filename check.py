@@ -15,7 +15,7 @@ response = raw_input('Recompile dict (y/N): ')
 print('\n')
 
 if response in ['y', 'Y']:
-    p = subprocess.Popen(['./memory.sh', './TextMiningCompiler words.txt mydict.bin'],
+    p = subprocess.Popen(['./memory.sh', './TextMiningCompiler words.txt ./mydict.bin'],
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     res = p.communicate()
